@@ -9,7 +9,7 @@ usd_path = os.path.join(current_dir, "../usd/BD/BD.usd")
 
 BD_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_dir=usd_path,
+        usd_path=usd_path,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             rigid_body_enabled=True,
             disable_gravity=False,
@@ -26,15 +26,6 @@ BD_CFG = ArticulationCfg(
             solver_velocity_iteration_count=4,
         ),
         
-        joint_drive=sim_utils.UrdfFileCfg.JointDriveCfg(
-            drive_type="force",
-            target_type="position",
-            gains=sim_utils.UrdfFileCfg.JointDriveCfg.PDGainsCfg(
-                stiffness=13,
-                damping=0.65
-            ),
-    ),
-
         activate_contact_sensors=True,
     ),
 
