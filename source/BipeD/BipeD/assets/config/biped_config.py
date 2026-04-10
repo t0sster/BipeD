@@ -25,7 +25,7 @@ BD_CFG = ArticulationCfg(
             solver_position_iteration_count=4,
             solver_velocity_iteration_count=4,
         ),
-        
+
         activate_contact_sensors=True,
     ),
 
@@ -61,8 +61,8 @@ BD_CFG = ArticulationCfg(
                 "J_L4_ankle",
                 "J_R4_ankle"
             ],
-            effort_limit=300,
-            velocity_limit=100.0,
+            effort_limit=20,
+            velocity_limit=15.0,
             stiffness={
                 "J_L0": 13,
                 "J_R0": 13,

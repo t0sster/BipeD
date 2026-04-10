@@ -419,6 +419,10 @@ class TerminationsCfg:
         func=mdp.illegal_contact,
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="base_link"), "threshold": 1.0},
     )
+    max_velocity = DoneTerm(
+        func=mdp.exceeds_max_velocity,
+        params={"max_velocity": 3.0},
+    )
 
 ##
 # Environment configuration
@@ -441,11 +445,16 @@ class BipedEnvCfg(ManagerBasedRLEnvCfg):
     # Post initialization
     def __post_init__(self) -> None:
         """Post initialization."""
+        scene: BipedSceneCfg = BipedSceneCfg(num_envs=2048, env_spacing=2.5)
         # general settings
-        self.decimation = 2
-        self.episode_length_s = 5
+        self.decimation = 4
+        self.episode_length_s = 20.0
         # viewer settings
         self.viewer.eye = (8.0, 0.0, 5.0)
         # simulation settings
-        self.sim.dt = 1 / 120
-        self.sim.render_interval = self.decimation
+        self.sim.dt = 0.005
+        self.sim.render_interval = 2 * self.decimation
+        self.seed = 42
+
+        if self.scene.contact_forces is not None:
+            self.scene.contact_forces.update_period = self.sim.dt
