@@ -44,7 +44,7 @@ class BipedBaseEnvCfg(BipedEnvCfg):
 
         #TODO: continue
         self.events.add_base_mass.params["asset_cfg"].body_names = "base_link"
-        self.events.add_base_mass.params["mass_distribution_params"] = (-1.0, 2.0)
+        self.events.add_base_mass.params["mass_distribution_params"] = (-0.25, 0.25)
 
         self.terminations.base_contact.params["sensor_cfg"].body_names = "base_link"
 
@@ -52,6 +52,8 @@ class BipedBaseEnvCfg(BipedEnvCfg):
         self.observations.critic.heights = None
 
         self.viewer.origin_type = "env"
+
+        self.terminations.max_velocity.params["max_velocity"] = 3.0
 
 @configclass
 class BipedBaseEnvCfg_Play(BipedBaseEnvCfg):
