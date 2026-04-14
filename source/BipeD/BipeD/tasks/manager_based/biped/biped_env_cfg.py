@@ -3,7 +3,7 @@ import math
 from isaaclab.utils import configclass
 
 from BipeD.assets.config.biped_config import BD_CFG
-from BipeD.tasks.manager_based.biped.cfg import BipedEnvCfg
+from BipeD.tasks.manager_based.biped.cfg import BipedEnvCfg, BipedLipEnvCfg
 from .cfg.terrains_cfg import (
     BLIND_ROUGH_TERRAINS_CFG,
     BLIND_ROUGH_TERRAINS_PLAY_CFG,
@@ -23,7 +23,7 @@ from isaaclab.managers import SceneEntityCfg
 ####################
 
 @configclass
-class BipedBaseEnvCfg(BipedEnvCfg):
+class BDBaseEnvCfg(BipedEnvCfg):
     def __post_init__(self):
         super().__post_init__()
 
@@ -42,21 +42,20 @@ class BipedBaseEnvCfg(BipedEnvCfg):
             "J_R4_ankle": 0.57
         }
 
-        #TODO: continue
         self.events.add_base_mass.params["asset_cfg"].body_names = "base_link"
         self.events.add_base_mass.params["mass_distribution_params"] = (-0.25, 0.25)
 
         self.terminations.base_contact.params["sensor_cfg"].body_names = "base_link"
 
-        self.observations.policy.heights = None
-        self.observations.critic.heights = None
+        self.observations.policy.heights = None  # type: ignore
+        self.observations.critic.heights = None  # type: ignore
 
         self.viewer.origin_type = "env"
 
         self.terminations.max_velocity.params["max_velocity"] = 3.0
 
 @configclass
-class BipedBaseEnvCfg_Play(BipedBaseEnvCfg):
+class BDBaseEnvCfg_Play(BDBaseEnvCfg):
     def __post_init__(self):
         super().__post_init__()
 
@@ -76,7 +75,7 @@ class BipedBaseEnvCfg_Play(BipedBaseEnvCfg):
 #################
 
 @configclass
-class BipedRoughEnvCfg(BipedBaseEnvCfg):
+class BDRoughEnvCfg(BDBaseEnvCfg):
     def __post_init__(self):
         super().__post_init__()
 
@@ -86,7 +85,7 @@ class BipedRoughEnvCfg(BipedBaseEnvCfg):
         self.scene.terrain.terrain_generator = BLIND_ROUGH_TERRAINS_CFG
 
 @configclass
-class BipedRoughEnvCfg_Play(BipedBaseEnvCfg_Play):
+class BDRoughEnvCfg_Play(BDBaseEnvCfg_Play):
     def __post_init__(self):
         super().__post_init__()
 
@@ -103,9 +102,60 @@ class BipedRoughEnvCfg_Play(BipedBaseEnvCfg_Play):
 ##################
 
 @configclass
-class BipedStairsEnvCfg(BipedBaseEnvCfg):
+class BDStairsEnvCfg(BDBaseEnvCfg):
     pass
 
 @configclass
-class BipedStairsEnvCfg_Play(BipedBaseEnvCfg_Play):
+class BDStairsEnvCfg_Play(BDBaseEnvCfg_Play):
     pass
+
+
+###################
+# LIP Environment #
+###################
+
+@configclass
+class BDLipEnvCfg(BipedLipEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.scene.robot = BD_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot") # type: ignore
+        self.scene.robot.init_state.joint_pos = {
+            "J_L0":   0.0,
+            "J_L1":  0.08,
+            "J_L2":  0.56,
+            "J_L3":  -1.12,
+            "J_L4_ankle": -0.57,
+
+            "J_R0":   0.0,
+            "J_R1":  -0.08,
+            "J_R2":  -0.56,
+            "J_R3":  1.12,
+            "J_R4_ankle": 0.57
+        }
+
+        self.events.add_base_mass.params["asset_cfg"].body_names = "base_link"
+        self.events.add_base_mass.params["mass_distribution_params"] = (-0.25, 0.25)
+
+        self.terminations.base_contact.params["sensor_cfg"].body_names = "base_link"
+
+        self.observations.policy.heights = None  # type: ignore
+        self.observations.critic.heights = None  # type: ignore
+
+        self.viewer.origin_type = "env"
+
+        self.terminations.max_velocity.params["max_velocity"] = 3.0
+
+@configclass
+class BDLipEnvCfg_Play(BDLipEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.scene.num_envs = 1
+
+        # disable randomization for play
+        self.observations.policy.enable_corruption = False
+        # remove random pushing event
+        # self.events.push_robot = None
+        # remove random base mass addition event
+        # self.events.add_base_mass = None

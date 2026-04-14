@@ -29,12 +29,6 @@ from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import Co
 
 from BipeD.tasks.manager_based.biped import mdp
 
-##
-# Pre-defined configs
-##
-
-from isaaclab_assets.robots.cartpole import CARTPOLE_CFG  # isort:skip
-
 
 ##
 # Scene definition
@@ -98,7 +92,7 @@ class BipedSceneCfg(InteractiveSceneCfg):
 
 
 @configclass
-class CommandCfg(BaseCommandsCfg):
+class CommandsCfg(BaseCommandsCfg):
     """Command specifications for the MDP."""
 
     gait_command = mdp.UniformGaitCommandCfg(
@@ -436,7 +430,7 @@ class BipedEnvCfg(ManagerBasedRLEnvCfg):
     # Basic settings
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()
-    commands: CommandCfg = CommandCfg()
+    commands: CommandsCfg = CommandsCfg()
     events: EventsCfg = EventsCfg()
     # MDP settings
     rewards: RewardsCfg = RewardsCfg()

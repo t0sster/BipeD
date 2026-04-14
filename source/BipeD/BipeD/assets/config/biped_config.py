@@ -6,7 +6,6 @@ from isaaclab.assets.articulation import ArticulationCfg
 
 current_dir = os.path.dirname(__file__)
 usd_path = os.path.join(current_dir, "../usd/BD_prims/BD_prims.usd")
-# usd_path = os.path.join(current_dir, "../usd/BD_prims_changed/BD_prims.usd")
 
 BD_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
@@ -22,7 +21,7 @@ BD_CFG = ArticulationCfg(
         ),
 
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
-            enabled_self_collisions=False,  #TODO: fix Enable (=True) mode
+            enabled_self_collisions=True,  # True mode works only with BD_prims
             solver_position_iteration_count=4,
             solver_velocity_iteration_count=4,
         ),
