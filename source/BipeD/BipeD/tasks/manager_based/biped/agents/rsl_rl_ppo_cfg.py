@@ -16,6 +16,7 @@ class PPORunnerCfg(RslRlOnPolicyRunnerCfg):
     save_interval = 200
     experiment_name = "biped_naive_rl"
     policy = RslRlPpoActorCriticCfg(
+        # class_name="ActorCritic",
         init_noise_std=1.0,
         actor_obs_normalization=False,
         critic_obs_normalization=False,
@@ -24,6 +25,7 @@ class PPORunnerCfg(RslRlOnPolicyRunnerCfg):
         activation="elu",
     )
     algorithm = RslRlPpoAlgorithmCfg(
+        # class_name="PPO",
         value_loss_coef=1.0,
         use_clipped_value_loss=True,
         clip_param=0.2,

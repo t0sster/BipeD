@@ -41,9 +41,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0.04" rpy="0 0 0" />
+      <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <box size="0.12 0.20 0.09" />
+        <box size="0.12 0.16 0.12" />
       </geometry>
     </collision>
   </link>
@@ -190,9 +190,9 @@
     </visual>
     <!-- Thigh: J_L3 is 0.14738 m below J_L2; cylinder along Z -->
     <collision>
-      <origin xyz="0 0 -0.074" rpy="0 0 0" />
+      <origin xyz="0 0.005 -0.06" rpy="0 0 0" />
       <geometry>
-        <cylinder radius="0.028" length="0.130" />
+        <cylinder radius="0.02" length="0.120" />
       </geometry>
     </collision>
   </link>
@@ -302,9 +302,9 @@
     </visual>
     <!-- Foot pad: CoM at z=-0.030; flat box for ground contact -->
     <collision>
-      <origin xyz="0.020 0 -0.040" rpy="0 0 0" />
+      <origin xyz="0.015 0 -0.040" rpy="0 0 0" />
       <geometry>
-        <box size="0.090 0.050 0.018" />
+        <box size="0.14 0.050 0.018" />
       </geometry>
     </collision>
   </link>
@@ -469,9 +469,9 @@
     </visual>
     <!-- Thigh: J_R3 is 0.14738 m below J_R2; cylinder along Z -->
     <collision>
-      <origin xyz="0 0 -0.074" rpy="0 0 0" />
+      <origin xyz="0 -0.005 -0.06" rpy="0 0 0" />
       <geometry>
-        <cylinder radius="0.028" length="0.130" />
+        <cylinder radius="0.02" length="0.120" />
       </geometry>
     </collision>
   </link>
@@ -581,9 +581,9 @@
     </visual>
     <!-- Foot pad: CoM at z=-0.030; flat box for ground contact -->
     <collision>
-      <origin xyz="0.020 0 -0.040" rpy="0 0 0" />
+      <origin xyz="0.015 0 -0.040" rpy="0 0 0" />
       <geometry>
-        <box size="0.090 0.050 0.018" />
+        <box size="0.14 0.050 0.018" />
       </geometry>
     </collision>
   </link>

@@ -136,6 +136,23 @@ def main():
     runner: OnPolicyRunner = on_policy_runner_class(
         env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device
     )
+
+    # перед созданием runner добавьте:
+    # config_dict = agent_cfg.to_dict()
+    # print("Policy keys:", config_dict.get("policy", {}).keys())
+    # print("Has 'class_name' in policy?", "class_name" in config_dict.get("policy", {}))
+    # if "algorithm" in config_dict:
+    #     print("Algorithm keys:", config_dict["algorithm"].keys())
+    #     if "actor" in config_dict["algorithm"]:
+    #         print("Actor keys:", config_dict["algorithm"]["actor"].keys())
+
+    # if agent_cfg.runner_type == "OnPolicyRunner":
+    #     runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+    # elif agent_cfg.class_name == "DistillationRunner":
+    #     runner = DistillationRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+    # else:
+    #     raise ValueError(f"Unsupported runner class: {agent_cfg.class_name}")
+    
     # write git state to logs
     runner.add_git_repo_to_log(__file__)
     # save resume path before creating a new log_dir

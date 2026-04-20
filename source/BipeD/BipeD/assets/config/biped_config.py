@@ -15,15 +15,15 @@ BD_CFG = ArticulationCfg(
             disable_gravity=False,
             linear_damping=0.0,
             angular_damping=0.0,
-            max_linear_velocity=1000.0,
-            max_angular_velocity=1000.0,
+            max_linear_velocity=10.0,
+            max_angular_velocity=10.0,
             max_depenetration_velocity=1.0,
         ),
 
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
-            enabled_self_collisions=True,  # True mode works only with BD_prims
-            solver_position_iteration_count=4,
-            solver_velocity_iteration_count=4,
+            enabled_self_collisions=True,  #TODO: fix True mode
+            solver_position_iteration_count=2,
+            solver_velocity_iteration_count=2,
         ),
 
         activate_contact_sensors=True,

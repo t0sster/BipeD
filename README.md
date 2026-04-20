@@ -16,6 +16,13 @@ It allows you to develop in an isolated environment, outside of the core Isaac L
 
 - Install Isaac Lab by following the [installation guide](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/index.html).
   We recommend using the conda or uv installation as it simplifies calling Python scripts from the terminal.
+  
+  `Isaaclab version: 2.3.0` from `release/2.3.0` official repo branch`
+
+  `rsl_rl version: 3.3.0`
+  ```bash
+  pip install rsl-rl-lib==3.3.0
+  ```
 
 - Clone or copy this project/repository separately from the Isaac Lab installation (i.e. outside the `IsaacLab` directory):
 
