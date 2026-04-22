@@ -221,7 +221,7 @@ class EventsCfg:
 
     # startup
     add_base_mass = EventTerm(
-        func=mdp.randomize_rigid_body_mass,
+        func=mdp.randomize_rigid_body_mass, # type: ignore
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="base_link"),
@@ -232,7 +232,7 @@ class EventsCfg:
         min_step_count_between_reset=0,
     )
     add_link_mass = EventTerm(
-        func=mdp.randomize_rigid_body_mass,
+        func=mdp.randomize_rigid_body_mass, # type: ignore
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=".*[LR].*_Link.*"),
@@ -252,7 +252,7 @@ class EventsCfg:
         },
     )
     robot_physics_material = EventTerm(
-        func=mdp.randomize_rigid_body_material,
+        func=mdp.randomize_rigid_body_material, # type: ignore
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
@@ -265,7 +265,7 @@ class EventsCfg:
         min_step_count_between_reset=0,
     )
     robot_joint_stiffness_and_damping = EventTerm(
-        func=mdp.randomize_actuator_gains,
+        func=mdp.randomize_actuator_gains, # type: ignore
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
@@ -371,7 +371,7 @@ class RewardsCfg:
     pen_lin_vel_z = RewTerm(func=mdp.lin_vel_z_l2, weight=-0.5)
     pen_ang_vel_xy = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
     pen_action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.01)
-    pen_action_smoothness = RewTerm(func=mdp.ActionSmoothnessPenalty, weight=-0.01)
+    pen_action_smoothness = RewTerm(func=mdp.ActionSmoothnessPenalty, weight=-0.01) # type: ignore
     pen_flat_orientation = RewTerm(func=mdp.flat_orientation_l2, weight=-1.0)
     pen_joint_vel_l2 = RewTerm(func=mdp.joint_vel_l2, weight=-5.0e-05)
     pen_joint_accel = RewTerm(func=mdp.joint_acc_l2, weight=-2.5e-07)
@@ -388,7 +388,7 @@ class RewardsCfg:
 
     # Gait reward
     test_gait_reward = RewTerm(
-        func=mdp.GaitReward,
+        func=mdp.GaitReward, # type: ignore
         weight=1.0,
         params={
             "tracking_contacts_shaped_force": -1.0,
