@@ -79,7 +79,6 @@ class BDRoughEnvCfg(BDBaseEnvCfg):
     def __post_init__(self):
         super().__post_init__()
 
-        #TODO: check 
 
         self.scene.terrain.terrain_type = "generator"
         self.scene.terrain.terrain_generator = BLIND_ROUGH_TERRAINS_CFG
@@ -89,7 +88,6 @@ class BDRoughEnvCfg_Play(BDBaseEnvCfg_Play):
     def __post_init__(self):
         super().__post_init__()
 
-        #TODO: check
 
         # spawn the robot randomly in the grid (instead of their terrain levels)
         self.scene.terrain.terrain_type = "generator"

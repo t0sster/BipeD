@@ -20,6 +20,17 @@ if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
     from isaaclab.managers import RewardTermCfg
 
+###########
+#   LIP   #
+###########
+
+def contact_schedule() -> torch.Tensor:
+    #TODO: check formula (17) in paper
+    return torch.zeros(1)
+
+############
+#   Base   #
+############
 
 def joint_powers_l1(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize joint powers on the articulation using L1-kernel"""

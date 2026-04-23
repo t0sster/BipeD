@@ -145,11 +145,11 @@ class ObservationsLipCfg:
         base_ang_vel = ObsTerm(func=mdp.base_ang_vel, noise=UniformNoise(operation="add", n_min=-0.1, n_max=0.1))
         proj_gravity = ObsTerm(func=mdp.projected_gravity, noise=UniformNoise(operation="add", n_min=-0.05, n_max=0.05))
         
-        foot_states_right = ObsTerm()
-        foot_states_left = ObsTerm()
+        foot_states_right = ObsTerm() #TODO
+        foot_states_left = ObsTerm() #TODO
 
-        step_command_right = ObsTerm()
-        step_command_left = ObsTerm()
+        step_command_right = ObsTerm() #TODO
+        step_command_left = ObsTerm() #TODO
 
         commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
         gait_phase = ObsTerm(func=mdp.get_gait_phase)
@@ -176,7 +176,7 @@ class ObservationsLipCfg:
         gait_phase = ObsTerm(func=mdp.get_gait_phase)
 
         joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=UniformNoise(operation="add", n_min=-0.01, n_max=0.01))
-        joint_vel = ObsTerm(func=mdp.joint_vel, noise=UniformNoise(operation="add", n_min=-0.5, n_max=0.5))
+        joint_vel = ObsTerm(func=mdp.joint_vel, noise=UniformNoise(operation="add", n_min=-0.1, n_max=0.1))
 
         # Privileged observation
 
@@ -204,19 +204,128 @@ class ObservationsLipCfg:
 @configclass
 class EventsLipCfg:
     """Event specifications for the MDP."""
-    pass
+    
+    # startup
+    add_base_mass = EventTerm(
+        func=mdp.randomize_rigid_body_mass, # type: ignore
+        mode="startup",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names="base_link"),
+            "mass_distribution_params": (-1.0, 3.0),
+            "operation": "add",
+        },
+        is_global_time=False,
+        min_step_count_between_reset=0,
+    )
+
+    # reset
+    reset_robot_base = EventTerm(
+        func=mdp.reset_root_state_uniform,
+        mode="reset",
+        params={
+            "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
+            "velocity_range": {
+                "x": (-0.5, 0.5),
+                "y": (-0.5, 0.5),
+                "z": (-0.5, 0.5),
+                "roll": (-0.5, 0.5),
+                "pitch": (-0.5, 0.5),
+                "yaw": (-0.5, 0.5),
+            },
+        },
+        is_global_time=False,
+        min_step_count_between_reset=0,
+    )
+
+    reset_robot_joints = EventTerm(
+        func=mdp.reset_joints_by_scale,
+        mode="reset",
+        params={
+            "position_range": (-0.1, 0.1),
+            "velocity_range": (0.0, 0.0),
+        },
+        is_global_time=False,
+        min_step_count_between_reset=0,
+    )
 
 
 @configclass
 class RewardsLipCfg:
     """Reward specifications for the MDP."""
-    pass
+
+    # Variables
+    rew_shaping = 0.25
+    base_height_target = 0.37
+    weights = {
+        # rewards
+        "rew_lin_vel_xy": 4.0,
+        "rew_ang_vel_z": 2.0,
+        "rew_base_height": 1.0,
+        "contact_schedule": 9.0,
+        # penalities
+        "joint_torques": -1e-4,
+        "joint_vel": -1e-3,
+        "joint_pos_limits": -10,
+        "action_smoothness": -1e-3,
+        "ang_vel_xy": -1e-2,
+        "lin_vel_z": -1e-1,
+        "flat_orientation": -1
+        }
+    
+    # Rewards
+    rew_lin_vel_xy = RewTerm(
+        func=mdp.track_lin_vel_xy_exp,
+        weight=weights["rew_lin_vel_xy"],
+        params={"command_name": "base_velocity", "std": math.sqrt(rew_shaping)}
+    )
+
+    rew_ang_vel_z = RewTerm(
+        func=mdp.track_ang_vel_z_exp,
+        weight=weights["rew_ang_vel_z"],
+        params={"command_name": "base_velocity", "std": math.sqrt(rew_shaping)}
+    )
+
+    rew_base_height = RewTerm(
+        func=mdp.base_height_l2,
+        weight=weights["rew_base_height"],
+        params={"target": base_height_target}
+    )
+
+    rew_contact_shedule = RewTerm(
+        func=mdp.contact_schedule, #TODO
+        weight=weights["contact_schedule"]
+
+    )
+
+    # Regularization
+    pen_joint_torq = RewTerm(func=mdp.joint_torques_l2, weight=weights["joint_torques"])
+    pen_joint_vel = RewTerm(func=mdp.joint_vel_l2, weight=weights["joint_vel"])
+    pen_joint_pos_limits = RewTerm(func=mdp.joint_pos_limits, weight=weights["joint_pos_limits"])
+    pen_action_smoothness = RewTerm(func=mdp.ActionSmoothnessPenalty, weight=weights["action_smoothness"]) # type: ignore
+    pen_ang_vel_xy = RewTerm(func=mdp.ang_vel_xy_l2, weight=weights["ang_vel_xy"])
+    pen_lin_vel_z = RewTerm(func=mdp.lin_vel_z_l2, weight=weights["lin_vel_z"])
+    pen_flat_orientation = RewTerm(func=mdp.flat_orientation_l2, weight=weights["flat_orientation"])
 
 
 @configclass
 class TerminationsLipCfg:
     """Termination terms for the MDP"""
-    pass
+
+    time_out = DoneTerm(
+        func=mdp.time_out,
+        time_out=True
+    )
+
+    base_contact = DoneTerm(
+        func=mdp.illegal_contact,
+        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="base_link"), "threshold": 1.0},
+    )
+    
+    max_velocity = DoneTerm(
+        func=mdp.exceeds_max_velocity,
+        params={"max_velocity": 3.0},
+    )
+
 
 
 ##
@@ -240,7 +349,7 @@ class BipedLipEnvCfg(ManagerBasedRLEnvCfg):
     # Post initialization
     def __post_init__(self) -> None:
         """Post initialization."""
-        scene: BDLipSceneCfg = BDLipSceneCfg(num_envs=2048, env_spacing=2.5)
+        self.scene: BDLipSceneCfg = BDLipSceneCfg(num_envs=2048, env_spacing=2.5)
         # general settings
         self.decimation = 4
         self.episode_length_s = 20.0

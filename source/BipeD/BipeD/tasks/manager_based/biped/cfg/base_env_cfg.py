@@ -79,7 +79,7 @@ class BipedSceneCfg(InteractiveSceneCfg):
     # robot: ArticulationCfg = CARTPOLE_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot") # type: ignore
     robot: ArticulationCfg = MISSING # type: ignore
 
-    ##TODO: continue with cfg 
+    #TODO: continue with cfg 
 
     contact_forces = ContactSensorCfg(
         prim_path="{ENV_REGEX_NS}/Robot/.*", history_length=4, track_air_time=True, update_period=0.0
