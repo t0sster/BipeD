@@ -4,7 +4,8 @@ from dataclasses import MISSING
 from isaaclab.managers import CommandTermCfg
 from isaaclab.utils import configclass
 
-from .gait_command import GaitCommand  # Import the GaitCommand class
+from .gait_command import GaitCommand
+from .lip_command import LipStepCommand
 
 
 @configclass
@@ -29,3 +30,15 @@ class UniformGaitCommandCfg(CommandTermCfg):
 
     resampling_time_range: tuple[float, float] = MISSING # type: ignore
     """Time interval for resampling the gait (in seconds)."""
+
+
+@configclass
+class LipStepCommandCfg(CommandTermCfg):
+    """Configuration for the LIPM step command generator."""
+
+    class_type: type = LipStepCommand
+
+    asset_name: str = "robot"
+    update_period: float = 0.1
+
+    resampling_time_range: tuple[float, float] = MISSING # type: ignore

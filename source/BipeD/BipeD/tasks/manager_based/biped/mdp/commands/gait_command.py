@@ -27,7 +27,7 @@ class GaitCommand(CommandTerm):
             env: The environment.
         """
         # initialize the base class
-        super().__init__(cfg, env)
+        super().__init__(cfg, env) # type: ignore
 
         # create buffers to store the command
         # command format: [frequency, phase offset, contact duration]

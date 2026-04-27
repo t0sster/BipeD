@@ -13,3 +13,4 @@ from .commands import * # noqa: F401, F403
 from .events import * # noqa: F401, F403
 from .curriculums import * # noqa: F401, F403
 from .terminations import * # noqa: F401, F403
+from .lipm import * # noqa: F401, F403

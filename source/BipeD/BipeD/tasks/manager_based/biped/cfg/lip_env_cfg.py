@@ -104,7 +104,11 @@ class CommandsLipCfg(CommandsCfg):
         ),
     )
     
-    #TODO
+    lip_step_command = mdp.LipStepCommandCfg(
+        asset_name="robot",
+        update_period=0.1,
+        resampling_time_range=(1e6, 1e6),
+    )
 
     def __post_init__(self):
         self.base_velocity.asset_name = "robot"
@@ -166,11 +170,11 @@ class ObservationsLipCfg:
         base_ang_vel = ObsTerm(func=mdp.base_ang_vel, noise=UniformNoise(operation="add", n_min=-0.1, n_max=0.1))
         proj_gravity = ObsTerm(func=mdp.projected_gravity, noise=UniformNoise(operation="add", n_min=-0.05, n_max=0.05))
         
-        foot_states_right = ObsTerm()
-        foot_states_left = ObsTerm()
+        foot_states_right = ObsTerm() #TODO
+        foot_states_left = ObsTerm() #TODO
 
-        step_command_right = ObsTerm()
-        step_command_left = ObsTerm()
+        step_command_right = ObsTerm() #TODO
+        step_command_left = ObsTerm() #TODO
 
         commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
         gait_phase = ObsTerm(func=mdp.get_gait_phase)
@@ -325,7 +329,6 @@ class TerminationsLipCfg:
         func=mdp.exceeds_max_velocity,
         params={"max_velocity": 3.0},
     )
-
 
 
 ##
