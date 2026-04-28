@@ -41,4 +41,9 @@ class LipStepCommandCfg(CommandTermCfg):
     asset_name: str = "robot"
     update_period: float = 0.1
 
-    resampling_time_range: tuple[float, float] = MISSING # type: ignore
+    # feet order must be [RIGHT, LEFT]
+    foot_body_names: tuple[str, str] = ("R4_Link_ankle", "L4_Link_ankle")
+
+    nominal_step_width: float = 0.22
+
+    resampling_time_range: tuple[float, float] = MISSING  # type: ignore

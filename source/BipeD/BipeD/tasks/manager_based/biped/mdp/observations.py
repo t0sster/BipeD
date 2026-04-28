@@ -156,8 +156,83 @@ def robot_base_pose(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntit
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     return asset.data.root_pos_w.to(device)
 
+
 def feet_lin_vel(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Root linear velocity in the asset's root frame."""
     # extract the used quantities (to enable type-hinting)
     asset: RigidObject = env.scene[asset_cfg.name]
     return asset.data.body_lin_vel_w[:, asset_cfg.body_ids].flatten(start_dim=1)
+
+
+def _base_heading(asset: Articulation, device: torch.device) -> torch.Tensor:
+    forward = torch.tensor([1.0, 0.0, 0.0], device=device).repeat(asset.data.root_quat_w.shape[0], 1)
+    base_forward = math_utils.quat_apply(asset.data.root_quat_w, forward)
+    return torch.atan2(base_forward[:, 1], base_forward[:, 0]).unsqueeze(1)
+
+
+def _foot_states_rel(
+    env: ManagerBasedEnv,
+    foot_body_names: list[str],
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    asset: Articulation = env.scene[asset_cfg.name]
+    device = asset.device
+
+    foot_cfg = SceneEntityCfg(asset_cfg.name, body_names=foot_body_names)
+    foot_cfg.resolve(env.scene)  # type: ignore
+    ids = foot_cfg.body_ids
+
+    foot_pos = asset.data.body_pos_w[:, ids, :]
+    foot_quat = asset.data.body_quat_w[:, ids, :]
+
+    base_pos = asset.data.root_pos_w
+    base_quat = asset.data.root_quat_w
+    base_heading = _base_heading(asset, device)
+
+    rel_pos = math_utils.quat_rotate_inverse(
+        base_quat, foot_pos[:, 0, :] - base_pos
+    )
+    foot_forward = math_utils.quat_apply(foot_quat[:, 0, :], torch.tensor([1.0, 0.0, 0.0], device=device))
+    foot_yaw = torch.atan2(foot_forward[:, 1], foot_forward[:, 0]).unsqueeze(1)
+    rel_yaw = math_utils.wrap_to_pi(foot_yaw - base_heading)
+
+    return torch.cat([rel_pos, rel_yaw], dim=1)
+
+
+def foot_states_right(env: ManagerBasedEnv) -> torch.Tensor:
+    return _foot_states_rel(env, ["R4_Link_ankle"])
+
+
+def foot_states_left(env: ManagerBasedEnv) -> torch.Tensor:
+    return _foot_states_rel(env, ["L4_Link_ankle"])
+
+
+def _step_command_rel(
+    env: ManagerBasedRLEnv,
+    index: int,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    asset: Articulation = env.scene[asset_cfg.name]
+    device = asset.device
+
+    cmd = env.command_manager.get_command("lip_step_command")
+    if index == 0:
+        target = cmd[:, 0:3]
+    else:
+        target = cmd[:, 3:6]
+
+    base_pos = asset.data.root_pos_w
+    base_quat = asset.data.root_quat_w
+    base_heading = _base_heading(asset, device)
+
+    rel_pos = math_utils.quat_rotate_inverse(base_quat, target[:, 0:3] - base_pos)
+    rel_yaw = math_utils.wrap_to_pi(target[:, 2:3] - base_heading)
+    return torch.cat([rel_pos, rel_yaw], dim=1)
+
+
+def step_command_right(env: ManagerBasedRLEnv) -> torch.Tensor:
+    return _step_command_rel(env, 0)
+
+
+def step_command_left(env: ManagerBasedRLEnv) -> torch.Tensor:
+    return _step_command_rel(env, 1)
