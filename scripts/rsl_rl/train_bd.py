@@ -34,6 +34,8 @@ parser.add_argument("--export_io_descriptors", action="store_true", default=Fals
 parser.add_argument(
     "--ray-proc-id", "-rid", type=int, default=None, help="Automatically configured by Ray integration, otherwise None."
 )
+parser.add_argument("--save_interval", type=int, default=200, help="Interval between saving checkpoints (in steps).")
+
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -50,28 +52,6 @@ sys.argv = [sys.argv[0]] + hydra_args
 # launch omniverse app
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
-
-"""Check for minimum supported RSL-RL version."""
-
-import importlib.metadata as metadata
-import platform
-
-from packaging import version
-
-# check minimum supported rsl-rl version
-RSL_RL_VERSION = "3.0.1"
-installed_version = metadata.version("rsl-rl-lib")
-if version.parse(installed_version) < version.parse(RSL_RL_VERSION):
-    if platform.system() == "Windows":
-        cmd = [r".\isaaclab.bat", "-p", "-m", "pip", "install", f"rsl-rl-lib=={RSL_RL_VERSION}"]
-    else:
-        cmd = ["./isaaclab.sh", "-p", "-m", "pip", "install", f"rsl-rl-lib=={RSL_RL_VERSION}"]
-    print(
-        f"Please install the correct version of RSL-RL.\nExisting version is: '{installed_version}'"
-        f" and required version is: '{RSL_RL_VERSION}'.\nTo install the correct version, run:"
-        f"\n\n\t{' '.join(cmd)}\n"
-    )
-    exit(1)
 
 """Rest everything follows."""
 
@@ -93,8 +73,9 @@ from isaaclab.envs import (
 )
 from isaaclab.utils.dict import print_dict
 from isaaclab.utils.io import dump_yaml
+from isaaclab_tasks.utils import get_checkpoint_path, parse_env_cfg
 
-from isaaclab_rl.rsl_rl import RslRlBaseRunnerCfg, RslRlVecEnvWrapper, RslRlOnPolicyRunnerCfg#, handle_deprecated_rsl_rl_cfg
+from isaaclab_rl.rsl_rl import RslRlBaseRunnerCfg, RslRlVecEnvWrapper, RslRlPpoActorCriticCfg#, handle_deprecated_rsl_rl_cfg
 
 import isaaclab_tasks  # noqa: F401
 from isaaclab_tasks.utils import get_checkpoint_path
@@ -111,40 +92,18 @@ torch.backends.cudnn.deterministic = False
 torch.backends.cudnn.benchmark = False
 
 
-@hydra_task_config(args_cli.task, args_cli.agent)
-def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agent_cfg: RslRlBaseRunnerCfg):
+def main():
     """Train with RSL-RL agent."""
-    # override configurations with non-hydra CLI arguments
-    agent_cfg = cli_args.update_rsl_rl_cfg(agent_cfg, args_cli)
-    env_cfg.scene.num_envs = args_cli.num_envs if args_cli.num_envs is not None else env_cfg.scene.num_envs
-    agent_cfg.max_iterations = (
-        args_cli.max_iterations if args_cli.max_iterations is not None else agent_cfg.max_iterations
+    # parse configuration
+    env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg = parse_env_cfg(
+        task_name=args_cli.task, device=args_cli.device, num_envs=args_cli.num_envs
     )
-
-    # handle deprecated configurations
-    # agent_cfg = handle_deprecated_rsl_rl_cfg(agent_cfg, installed_version)
     agent_cfg: RslRlBaseRunnerCfg = cli_args.parse_rsl_rl_cfg(args_cli.task, args_cli)
 
-    # set the environment seed
-    # note: certain randomizations occur in the environment initialization so we set the seed here
-    env_cfg.seed = agent_cfg.seed
-    env_cfg.sim.device = args_cli.device if args_cli.device is not None else env_cfg.sim.device
-    # check for invalid combination of CPU device with distributed training
-    if args_cli.distributed and args_cli.device is not None and "cpu" in args_cli.device:
-        raise ValueError(
-            "Distributed training is not supported when using CPU device. "
-            "Please use GPU device (e.g., --device cuda) for distributed training."
-        )
-
-    # multi-gpu training configuration
-    if args_cli.distributed:
-        env_cfg.sim.device = f"cuda:{app_launcher.local_rank}"
-        agent_cfg.device = f"cuda:{app_launcher.local_rank}"
-
-        # set seed to have diversity in different threads
-        seed = agent_cfg.seed + app_launcher.local_rank
-        env_cfg.seed = seed
-        agent_cfg.seed = seed
+    if args_cli.max_iterations is not None:
+        agent_cfg.max_iterations = args_cli.max_iterations
+    if args_cli.save_interval is not None:
+        agent_cfg.save_interval = args_cli.save_interval
 
     # specify directory for logging experiments
     log_root_path = os.path.join("logs", "rsl_rl", agent_cfg.experiment_name)
@@ -152,39 +111,16 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     print(f"[INFO] Logging experiment in directory: {log_root_path}")
     # specify directory for logging runs: {time-stamp}_{run_name}
     log_dir = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    # The Ray Tune workflow extracts experiment name using the logging line below, hence, do not
-    # change it (see PR #2346, comment-2819298849)
-    print(f"Exact experiment name requested from command line: {log_dir}")
     if agent_cfg.run_name:
         log_dir += f"_{agent_cfg.run_name}"
     log_dir = os.path.join(log_root_path, log_dir)
 
-    # set the IO descriptors export flag if requested
-    if isinstance(env_cfg, ManagerBasedRLEnvCfg):
-        env_cfg.export_io_descriptors = args_cli.export_io_descriptors
-    else:
-        logger.warning(
-            "IO descriptors are only supported for manager based RL environments. No IO descriptors will be exported."
-        )
-
-    # set the log directory for the environment (works for all environment types)
-    env_cfg.log_dir = log_dir
-
     # create isaac environment
     env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
-
-    # convert to single-agent instance if required by the RL algorithm
-    if isinstance(env.unwrapped, DirectMARLEnv):
-        env = multi_agent_to_single_agent(env)
-
-    # save resume path before creating a new log_dir
-    if agent_cfg.resume or agent_cfg.algorithm.class_name == "Distillation":
-        resume_path = get_checkpoint_path(log_root_path, agent_cfg.load_run, agent_cfg.load_checkpoint)
-
     # wrap for video recording
     if args_cli.video:
         video_kwargs = {
-            "video_folder": os.path.join(log_dir, "videos", "train"),
+            "video_folder": os.path.join(log_dir, "videos"),
             "step_trigger": lambda step: step % args_cli.video_interval == 0,
             "video_length": args_cli.video_length,
             "disable_logger": True,
@@ -192,42 +128,62 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         print("[INFO] Recording videos during training.")
         print_dict(video_kwargs, nesting=4)
         env = gym.wrappers.RecordVideo(env, **video_kwargs)
-
-    start_time = time.time()
-
     # wrap around environment for rsl-rl
-    env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
+    env = RslRlVecEnvWrapper(env)
 
     # create runner from rsl-rl
-    if agent_cfg.class_name == "OnPolicyRunner":
-        runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
-    elif agent_cfg.class_name == "DistillationRunner":
-        runner = DistillationRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
-    else:
-        raise ValueError(f"Unsupported runner class: {agent_cfg.class_name}")
+    on_policy_runner_class = eval(agent_cfg.runner_type)
+    runner: OnPolicyRunner = on_policy_runner_class(
+        env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device
+    )
+
+    # перед созданием runner добавьте:
+    # config_dict = agent_cfg.to_dict()
+    # print("Policy keys:", config_dict.get("policy", {}).keys())
+    # print("Has 'class_name' in policy?", "class_name" in config_dict.get("policy", {}))
+    # if "algorithm" in config_dict:
+    #     print("Algorithm keys:", config_dict["algorithm"].keys())
+    #     if "actor" in config_dict["algorithm"]:
+    #         print("Actor keys:", config_dict["algorithm"]["actor"].keys())
+
+    # if agent_cfg.runner_type == "OnPolicyRunner":
+    #     runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+    # elif agent_cfg.class_name == "DistillationRunner":
+    #     runner = DistillationRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+    # else:
+    #     raise ValueError(f"Unsupported runner class: {agent_cfg.class_name}")
+    
     # write git state to logs
     runner.add_git_repo_to_log(__file__)
-    # load the checkpoint
-    if agent_cfg.resume or agent_cfg.algorithm.class_name == "Distillation":
+    # save resume path before creating a new log_dir
+    if agent_cfg.resume:
+        # get path to previous checkpoint
+        if args_cli.checkpoint_path is not None:
+            resume_path = args_cli.checkpoint_path
+        else:
+            resume_path = get_checkpoint_path(log_root_path, agent_cfg.load_run, agent_cfg.load_checkpoint)
         print(f"[INFO]: Loading model checkpoint from: {resume_path}")
         # load previously trained model
         runner.load(resume_path)
 
+    # set seed of the environment
+    env.seed(agent_cfg.seed)
+
     # dump the configuration into log-directory
     dump_yaml(os.path.join(log_dir, "params", "env.yaml"), env_cfg)
     dump_yaml(os.path.join(log_dir, "params", "agent.yaml"), agent_cfg)
+    # dump_pickle(os.path.join(log_dir, "params", "env.pkl"), env_cfg)
+    # dump_pickle(os.path.join(log_dir, "params", "agent.pkl"), agent_cfg)
 
     # run training
     runner.learn(num_learning_iterations=agent_cfg.max_iterations, init_at_random_ep_len=True)
-
-    print(f"Training time: {round(time.time() - start_time, 2)} seconds")
 
     # close the simulator
     env.close()
 
 
 if __name__ == "__main__":
-    # run the main function
+    # run the main execution
     main()
     # close sim app
     simulation_app.close()
