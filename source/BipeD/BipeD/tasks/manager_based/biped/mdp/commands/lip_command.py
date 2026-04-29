@@ -42,7 +42,7 @@ class LipStepCommand(CommandTerm):
         """Command format: [r_x, r_y, r_yaw, l_x, l_y, l_yaw]."""
         return self.step_target_command
 
-    def _update_command(self, env_ids):
+    def _update_command(self):
         env = self._env  # type: ignore
         asset = env.scene[self.cfg.asset_name]
 
@@ -50,7 +50,8 @@ class LipStepCommand(CommandTerm):
         root_vel = asset.data.root_lin_vel_w
         base_quat = asset.data.root_quat_w
 
-        forward = math_utils.quat_apply(base_quat, self._forward)
+        forward = self._forward.repeat(base_quat.shape[0], 1)
+        forward = math_utils.quat_apply(base_quat, forward)
         heading = torch.atan2(forward[:, 1], forward[:, 0]).unsqueeze(1)
 
         foot_pos = asset.data.body_pos_w[:, self._foot_body_ids, :]
@@ -100,14 +101,11 @@ class LipStepCommand(CommandTerm):
         right_target = torch.zeros(self.num_envs, 3, device=self.device)
         left_target = torch.zeros(self.num_envs, 3, device=self.device)
 
-        right_yaw = torch.atan2(
-            math_utils.quat_apply(foot_quat[:, 0, :], self._forward)[:, 1],
-            math_utils.quat_apply(foot_quat[:, 0, :], self._forward)[:, 0],
-        )
-        left_yaw = torch.atan2(
-            math_utils.quat_apply(foot_quat[:, 1, :], self._forward)[:, 1],
-            math_utils.quat_apply(foot_quat[:, 1, :], self._forward)[:, 0],
-        )
+        foot_forward = self._forward.repeat(foot_quat.shape[0], 1)
+        right_forward = math_utils.quat_apply(foot_quat[:, 0, :], foot_forward)
+        left_forward = math_utils.quat_apply(foot_quat[:, 1, :], foot_forward)
+        right_yaw = torch.atan2(right_forward[:, 1], right_forward[:, 0])
+        left_yaw = torch.atan2(left_forward[:, 1], left_forward[:, 0])
 
         right_target[:, :2] = torch.where(
             swing_right.unsqueeze(1), target[:, :2], foot_pos[:, 0, :2]
@@ -121,9 +119,6 @@ class LipStepCommand(CommandTerm):
 
         self.step_target_command[:, 0:3] = right_target
         self.step_target_command[:, 3:6] = left_target
-
-        if env_ids is not None:
-            self.step_target_command[env_ids] = self.step_target_command[env_ids]
 
     def get_desired_step(self, env_ids: Sequence[int] | None = None) -> torch.Tensor:
         if env_ids is None:

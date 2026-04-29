@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import math
-
 from dataclasses import MISSING
 
 import isaaclab.sim as sim_utils
@@ -28,6 +27,34 @@ from isaaclab.sim import DomeLightCfg, MdlFileCfg, RigidBodyMaterialCfg
 from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import CommandsCfg
 
 from BipeD.tasks.manager_based.biped import mdp
+
+
+@configclass
+class LipRewardParamsCfg:
+    """Reward parameters for the LIP environment."""
+
+    rew_shaping: float = 0.25
+    base_height_target: float = 0.37
+    step_position_sigma: float = 0.05
+    step_yaw_sigma: float = 0.25
+    contact_threshold: float = 1.0
+    contact_sigma: float = 0.25
+    weights: dict[str, float] = {
+        # rewards
+        "rew_lin_vel_xy": 4.0,
+        "rew_ang_vel_z": 2.0,
+        "rew_base_height": 1.0,
+        "rew_step_tracking": 3.0,
+        "contact_schedule": 9.0,
+        # penalities
+        "joint_torques": -1e-4,
+        "joint_vel": -1e-3,
+        "joint_pos_limits": -10,
+        "action_smoothness": -1e-3,
+        "ang_vel_xy": -1e-2,
+        "lin_vel_z": -1e-1,
+        "flat_orientation": -1,
+    }
 
 
 ##
@@ -258,59 +285,56 @@ class EventsLipCfg:
 @configclass
 class RewardsLipCfg:
     """Reward specifications for the MDP."""
-
-    # Variables
-    rew_shaping = 0.25
-    base_height_target = 0.37
-    weights = {
-        # rewards
-        "rew_lin_vel_xy": 4.0,
-        "rew_ang_vel_z": 2.0,
-        "rew_base_height": 1.0,
-        "contact_schedule": 9.0,
-        # penalities
-        "joint_torques": -1e-4,
-        "joint_vel": -1e-3,
-        "joint_pos_limits": -10,
-        "action_smoothness": -1e-3,
-        "ang_vel_xy": -1e-2,
-        "lin_vel_z": -1e-1,
-        "flat_orientation": -1
-        }
     
     # Rewards
     rew_lin_vel_xy = RewTerm(
         func=mdp.track_lin_vel_xy_exp,
-        weight=weights["rew_lin_vel_xy"],
-        params={"command_name": "base_velocity", "std": math.sqrt(rew_shaping)}
+        weight=4.0,
+        params={"command_name": "base_velocity", "std": math.sqrt(0.25)}
     )
 
     rew_ang_vel_z = RewTerm(
         func=mdp.track_ang_vel_z_exp,
-        weight=weights["rew_ang_vel_z"],
-        params={"command_name": "base_velocity", "std": math.sqrt(rew_shaping)}
+        weight=2.0,
+        params={"command_name": "base_velocity", "std": math.sqrt(0.25)}
     )
 
     rew_base_height = RewTerm(
         func=mdp.base_height_l2,
-        weight=weights["rew_base_height"],
-        params={"target": base_height_target}
+        weight=1.0,
+        params={"target_height": 0.37}
     )
 
-    rew_contact_shedule = RewTerm(
-        func=mdp.contact_schedule, #TODO
-        weight=weights["contact_schedule"]
+    rew_step_tracking = RewTerm(
+        func=mdp.step_command_tracking,
+        weight=3.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=["R4_Link_ankle", "L4_Link_ankle"]),
+            "command_name": "lip_step_command",
+            "position_sigma": 0.05,
+            "yaw_sigma": 0.25,
+        },
+    )
 
+    rew_contact_schedule = RewTerm(
+        func=mdp.contact_schedule,
+        weight=9.0,
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["R4_Link_ankle", "L4_Link_ankle"]),
+            "command_name": "gait_command",
+            "threshold": 1.0,
+            "sigma": 0.25,
+        },
     )
 
     # Regularization
-    pen_joint_torq = RewTerm(func=mdp.joint_torques_l2, weight=weights["joint_torques"])
-    pen_joint_vel = RewTerm(func=mdp.joint_vel_l2, weight=weights["joint_vel"])
-    pen_joint_pos_limits = RewTerm(func=mdp.joint_pos_limits, weight=weights["joint_pos_limits"])
-    pen_action_smoothness = RewTerm(func=mdp.ActionSmoothnessPenalty, weight=weights["action_smoothness"]) # type: ignore
-    pen_ang_vel_xy = RewTerm(func=mdp.ang_vel_xy_l2, weight=weights["ang_vel_xy"])
-    pen_lin_vel_z = RewTerm(func=mdp.lin_vel_z_l2, weight=weights["lin_vel_z"])
-    pen_flat_orientation = RewTerm(func=mdp.flat_orientation_l2, weight=weights["flat_orientation"])
+    pen_joint_torq = RewTerm(func=mdp.joint_torques_l2, weight=-1e-4)
+    pen_joint_vel = RewTerm(func=mdp.joint_vel_l2, weight=-1e-3)
+    pen_joint_pos_limits = RewTerm(func=mdp.joint_pos_limits, weight=-10)
+    pen_action_smoothness = RewTerm(func=mdp.ActionSmoothnessPenalty, weight=-1e-3) # type: ignore
+    pen_ang_vel_xy = RewTerm(func=mdp.ang_vel_xy_l2, weight=-1e-2)
+    pen_lin_vel_z = RewTerm(func=mdp.lin_vel_z_l2, weight=-1e-1)
+    pen_flat_orientation = RewTerm(func=mdp.flat_orientation_l2, weight=-1)
 
 
 @configclass
@@ -350,6 +374,7 @@ class BipedLipEnvCfg(ManagerBasedRLEnvCfg):
     # MDP settings
     rewards: RewardsLipCfg = RewardsLipCfg()
     terminations: TerminationsLipCfg = TerminationsLipCfg()
+    reward_params: LipRewardParamsCfg = LipRewardParamsCfg()
 
     # Post initialization
     def __post_init__(self) -> None:
@@ -364,6 +389,27 @@ class BipedLipEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.dt = 0.005
         self.sim.render_interval = 2 * self.decimation
         self.seed = 42
+
+        params = self.reward_params
+        self.rewards.rew_lin_vel_xy.weight = params.weights["rew_lin_vel_xy"]
+        self.rewards.rew_lin_vel_xy.params["std"] = math.sqrt(params.rew_shaping)
+        self.rewards.rew_ang_vel_z.weight = params.weights["rew_ang_vel_z"]
+        self.rewards.rew_ang_vel_z.params["std"] = math.sqrt(params.rew_shaping)
+        self.rewards.rew_base_height.weight = params.weights["rew_base_height"]
+        self.rewards.rew_base_height.params["target_height"] = params.base_height_target
+        self.rewards.rew_step_tracking.weight = params.weights["rew_step_tracking"]
+        self.rewards.rew_step_tracking.params["position_sigma"] = params.step_position_sigma
+        self.rewards.rew_step_tracking.params["yaw_sigma"] = params.step_yaw_sigma
+        self.rewards.rew_contact_schedule.weight = params.weights["contact_schedule"]
+        self.rewards.rew_contact_schedule.params["threshold"] = params.contact_threshold
+        self.rewards.rew_contact_schedule.params["sigma"] = params.contact_sigma
+        self.rewards.pen_joint_torq.weight = params.weights["joint_torques"]
+        self.rewards.pen_joint_vel.weight = params.weights["joint_vel"]
+        self.rewards.pen_joint_pos_limits.weight = params.weights["joint_pos_limits"]
+        self.rewards.pen_action_smoothness.weight = params.weights["action_smoothness"]
+        self.rewards.pen_ang_vel_xy.weight = params.weights["ang_vel_xy"]
+        self.rewards.pen_lin_vel_z.weight = params.weights["lin_vel_z"]
+        self.rewards.pen_flat_orientation.weight = params.weights["flat_orientation"]
 
         if self.scene.contact_forces is not None:
             self.scene.contact_forces.update_period = self.sim.dt

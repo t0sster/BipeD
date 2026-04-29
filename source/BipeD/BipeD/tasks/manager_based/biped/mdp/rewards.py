@@ -16,6 +16,8 @@ from isaaclab.managers import ManagerTermBase, SceneEntityCfg
 from isaaclab.sensors import ContactSensor, RayCaster
 import isaaclab.utils.math as math_utils
 
+from .lipm import gait_phase_from_command
+
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
     from isaaclab.managers import RewardTermCfg
@@ -24,9 +26,69 @@ if TYPE_CHECKING:
 #   LIP   #
 ###########
 
-def contact_schedule() -> torch.Tensor:
-    #TODO: check formula (17) in paper
-    return torch.zeros(1)
+def contact_schedule(
+    env: ManagerBasedRLEnv,
+    sensor_cfg: SceneEntityCfg,
+    command_name: str = "gait_command",
+    threshold: float = 1.0,
+    sigma: float = 0.25,
+) -> torch.Tensor:
+    """Reward matching the expected contact schedule from gait command.
+
+    Compares desired contact state from gait phase to actual contact.
+    """
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    body_ids = sensor_cfg.body_ids
+    latest_forces = contact_sensor.data.net_forces_w_history[:, 0, body_ids, 2]
+    actual_contact = (latest_forces > threshold).float()
+
+    gait_cmd = env.command_manager.get_command(command_name)
+    right_phase, left_phase, duration = gait_phase_from_command(env.episode_length_buf, env.step_dt, gait_cmd)
+    desired_contact = torch.stack((right_phase < duration, left_phase < duration), dim=1).float()
+
+    diff = actual_contact - desired_contact
+    reward = torch.exp(-torch.square(diff) / sigma)
+    return reward.mean(dim=1)
+
+
+def step_command_tracking(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    command_name: str = "lip_step_command",
+    position_sigma: float = 0.05,
+    yaw_sigma: float = 0.25,
+) -> torch.Tensor:
+    """Reward tracking the LIPM step target for both feet.
+
+    Uses world-frame foot pose against the command target.
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    foot_ids = asset_cfg.body_ids
+
+    foot_pos = asset.data.body_pos_w[:, foot_ids, :2]
+    foot_quat = asset.data.body_quat_w[:, foot_ids, :]
+
+    forward = torch.tensor([1.0, 0.0, 0.0], device=asset.device).repeat(env.num_envs, 1)
+    right_forward = math_utils.quat_apply(foot_quat[:, 0, :], forward)
+    left_forward = math_utils.quat_apply(foot_quat[:, 1, :], forward)
+    foot_yaw = torch.stack(
+        (
+            torch.atan2(right_forward[:, 1], right_forward[:, 0]),
+            torch.atan2(left_forward[:, 1], left_forward[:, 0]),
+        ),
+        dim=1,
+    )
+
+    cmd = env.command_manager.get_command(command_name)
+    target_xy = torch.stack((cmd[:, 0:2], cmd[:, 3:5]), dim=1)
+    target_yaw = torch.stack((cmd[:, 2], cmd[:, 5]), dim=1)
+
+    pos_err = torch.norm(foot_pos - target_xy, dim=2)
+    yaw_err = math_utils.wrap_to_pi(foot_yaw - target_yaw)
+
+    reward_pos = torch.exp(-torch.square(pos_err) / position_sigma)
+    reward_yaw = torch.exp(-torch.square(yaw_err) / yaw_sigma)
+    return 0.5 * (reward_pos + reward_yaw).mean(dim=1)
 
 ############
 #   Base   #

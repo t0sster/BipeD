@@ -163,6 +163,9 @@ def feet_lin_vel(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCf
     asset: RigidObject = env.scene[asset_cfg.name]
     return asset.data.body_lin_vel_w[:, asset_cfg.body_ids].flatten(start_dim=1)
 
+###                                     ###
+# Obsercations for feets and step targets #
+###                                     ###
 
 def _base_heading(asset: Articulation, device: torch.device) -> torch.Tensor:
     forward = torch.tensor([1.0, 0.0, 0.0], device=device).repeat(asset.data.root_quat_w.shape[0], 1)
@@ -189,10 +192,11 @@ def _foot_states_rel(
     base_quat = asset.data.root_quat_w
     base_heading = _base_heading(asset, device)
 
-    rel_pos = math_utils.quat_rotate_inverse(
+    rel_pos = math_utils.quat_apply_inverse(
         base_quat, foot_pos[:, 0, :] - base_pos
     )
-    foot_forward = math_utils.quat_apply(foot_quat[:, 0, :], torch.tensor([1.0, 0.0, 0.0], device=device))
+    forward = torch.tensor([1.0, 0.0, 0.0], device=device).repeat(foot_quat.shape[0], 1)
+    foot_forward = math_utils.quat_apply(foot_quat[:, 0, :], forward)
     foot_yaw = torch.atan2(foot_forward[:, 1], foot_forward[:, 0]).unsqueeze(1)
     rel_yaw = math_utils.wrap_to_pi(foot_yaw - base_heading)
 
@@ -225,7 +229,7 @@ def _step_command_rel(
     base_quat = asset.data.root_quat_w
     base_heading = _base_heading(asset, device)
 
-    rel_pos = math_utils.quat_rotate_inverse(base_quat, target[:, 0:3] - base_pos)
+    rel_pos = math_utils.quat_apply_inverse(base_quat, target[:, 0:3] - base_pos)
     rel_yaw = math_utils.wrap_to_pi(target[:, 2:3] - base_heading)
     return torch.cat([rel_pos, rel_yaw], dim=1)
 
