@@ -384,7 +384,8 @@ class BipedLipEnvCfg(ManagerBasedRLEnvCfg):
         self.decimation = 4
         self.episode_length_s = 20.0
         # viewer settings
-        self.viewer.eye = (8.0, 0.0, 5.0)
+        self.viewer.eye = (10.0, 10.0, 5.0)
+        self.viewer.lookat = (-5.0, 0.0, 0.0)
         # simulation settings
         self.sim.dt = 0.005
         self.sim.render_interval = 2 * self.decimation

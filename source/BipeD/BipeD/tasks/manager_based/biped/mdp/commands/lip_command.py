@@ -57,9 +57,9 @@ class LipStepCommand(CommandTerm):
         foot_pos = asset.data.body_pos_w[:, self._foot_body_ids, :]
         foot_quat = asset.data.body_quat_w[:, self._foot_body_ids, :]
 
-        gait_command = env.command_manager.get_command("gait_command")
+        gait_command = env.command_manager.get_command("gait_command")  # type: ignore
         right_phase, left_phase, duration = gait_phase_from_command(
-            env.episode_length_buf, env.step_dt, gait_command
+            env.episode_length_buf, env.step_dt, gait_command # type: ignore
         )
 
         right_contact = right_phase < duration
@@ -76,7 +76,7 @@ class LipStepCommand(CommandTerm):
         swing_right[both_swing] = True
         swing_left[both_swing] = False
 
-        cmd_vel = env.command_manager.get_command("base_velocity")[:, :2]
+        cmd_vel = env.command_manager.get_command("base_velocity")[:, :2] # type: ignore
         freq = gait_command[:, 0].clamp(min=1e-3)
         T = (0.5 / freq).unsqueeze(1)
 

@@ -119,17 +119,36 @@ class BDLipEnvCfg(BipedLipEnvCfg):
 
         self.scene.robot = BD_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot") # type: ignore
         self.scene.robot.init_state.joint_pos = {
+            # Left
             "J_L0":   0.0,
             "J_L1":  0.08,
             "J_L2":  0.56,
             "J_L3":  -1.12,
             "J_L4_ankle": -0.57,
-
+            # Right
             "J_R0":   0.0,
             "J_R1":  -0.08,
             "J_R2":  -0.56,
             "J_R3":  1.12,
             "J_R4_ankle": 0.57
+        }
+        
+        self.reward_params.base_height_target = 0.32
+        self.reward_params.weights = {
+            # rewards
+            "rew_lin_vel_xy": 4.0,
+            "rew_ang_vel_z": 2.0,
+            "rew_base_height": 1.0,
+            "rew_step_tracking": 3.0,
+            "contact_schedule": 9.0,
+            # penalities
+            "joint_torques": -1e-4,
+            "joint_vel": -1e-3,
+            "joint_pos_limits": -10,
+            "action_smoothness": -1e-3,
+            "ang_vel_xy": -1e-2,
+            "lin_vel_z": -1e-1,
+            "flat_orientation": -1,
         }
 
         self.events.add_base_mass.params["asset_cfg"].body_names = "base_link"
