@@ -34,7 +34,7 @@ class LipRewardParamsCfg:
     """Reward parameters for the LIP environment."""
 
     rew_shaping: float = 0.25
-    base_height_target: float = 0.37
+    base_height_target: float = 0.32
     step_position_sigma: float = 0.05
     step_yaw_sigma: float = 0.25
     contact_threshold: float = 1.0
@@ -302,7 +302,7 @@ class RewardsLipCfg:
     rew_base_height = RewTerm(
         func=mdp.base_height_l2,
         weight=1.0,
-        params={"target_height": 0.37}
+        params={"target_height": 0.32}
     )
 
     rew_step_tracking = RewTerm(

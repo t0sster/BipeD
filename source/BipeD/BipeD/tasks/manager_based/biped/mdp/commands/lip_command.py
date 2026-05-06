@@ -52,7 +52,7 @@ class LipStepCommand(CommandTerm):
 
         forward = self._forward.repeat(base_quat.shape[0], 1)
         forward = math_utils.quat_apply(base_quat, forward)
-        heading = torch.atan2(forward[:, 1], forward[:, 0]).unsqueeze(1)
+        base_heading = torch.atan2(forward[:, 1], forward[:, 0]).unsqueeze(1)
 
         foot_pos = asset.data.body_pos_w[:, self._foot_body_ids, :]
         foot_quat = asset.data.body_quat_w[:, self._foot_body_ids, :]
@@ -77,10 +77,25 @@ class LipStepCommand(CommandTerm):
         swing_left[both_swing] = False
 
         cmd_vel = env.command_manager.get_command("base_velocity")[:, :2] # type: ignore
-        freq = gait_command[:, 0].clamp(min=1e-3)
-        T = (0.5 / freq).unsqueeze(1)
+        cmd_speed = torch.norm(cmd_vel, dim=1, keepdim=True)
+        cmd_heading = torch.atan2(cmd_vel[:, 1], cmd_vel[:, 0]).unsqueeze(1)
+
+        if self.cfg.use_cmd_heading:
+            heading = torch.where(cmd_speed > self.cfg.heading_speed_eps, cmd_heading, base_heading)
+        else:
+            heading = base_heading
+
+        if self.cfg.step_period_s is None:
+            freq = gait_command[:, 0].clamp(min=1e-3)
+            T = (0.5 / freq).unsqueeze(1)
+        else:
+            T = torch.full((self.num_envs, 1), self.cfg.step_period_s, device=self.device)
 
         dstep_width = torch.full((self.num_envs, 1), self.cfg.nominal_step_width, device=self.device)
+        if self.cfg.nominal_step_length is None:
+            dstep_length = None
+        else:
+            dstep_length = torch.full((self.num_envs, 1), self.cfg.nominal_step_length, device=self.device)
 
         support_pos = torch.where(
             swing_right.unsqueeze(1),
@@ -96,6 +111,8 @@ class LipStepCommand(CommandTerm):
             heading,
             T,
             dstep_width,
+            dstep_length,
+            swing_left,
         )
 
         right_target = torch.zeros(self.num_envs, 3, device=self.device)

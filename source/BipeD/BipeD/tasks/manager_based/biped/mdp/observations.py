@@ -30,7 +30,7 @@ def robot_joint_acc(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntit
 
 def robot_feet_contact_force(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg):
     """contact force of the robot feet"""
-    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name] # type: ignore
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     contact_force_tensor = contact_sensor.data.net_forces_w_history.to(device)
     return contact_force_tensor.view(contact_force_tensor.shape[0], -1)
@@ -107,9 +107,9 @@ def robot_center_of_mass(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = Scene
 def robot_contact_force(env: ManagerBasedEnv, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
     """The contact forces of the body."""
     # extract the used quantities (to enable type-hinting)
-    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name] # type: ignore
 
-    body_contact_force = contact_sensor.data.net_forces_w[:, sensor_cfg.body_ids]
+    body_contact_force = contact_sensor.data.net_forces_w[:, sensor_cfg.body_ids] # type: ignore
 
     return body_contact_force.reshape(body_contact_force.shape[0], -1)
 
@@ -190,7 +190,7 @@ def _foot_states_rel(
 
     base_pos = asset.data.root_pos_w
     base_quat = asset.data.root_quat_w
-    base_heading = _base_heading(asset, device)
+    base_heading = _base_heading(asset, device) # type: ignore
 
     rel_pos = math_utils.quat_apply_inverse(
         base_quat, foot_pos[:, 0, :] - base_pos
@@ -227,7 +227,7 @@ def _step_command_rel(
 
     base_pos = asset.data.root_pos_w
     base_quat = asset.data.root_quat_w
-    base_heading = _base_heading(asset, device)
+    base_heading = _base_heading(asset, device) # type: ignore
 
     rel_pos = math_utils.quat_apply_inverse(base_quat, target[:, 0:3] - base_pos)
     rel_yaw = math_utils.wrap_to_pi(target[:, 2:3] - base_heading)

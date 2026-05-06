@@ -54,6 +54,7 @@ class BDBaseEnvCfg(BipedEnvCfg):
 
         self.terminations.max_velocity.params["max_velocity"] = 3.0
 
+
 @configclass
 class BDBaseEnvCfg_Play(BDBaseEnvCfg):
     def __post_init__(self):
@@ -162,6 +163,12 @@ class BDLipEnvCfg(BipedLipEnvCfg):
         self.viewer.origin_type = "env"
 
         self.terminations.max_velocity.params["max_velocity"] = 3.0
+
+        # Step command settings (match reference-style explicit step geometry).
+        self.commands.lip_step_command.nominal_step_length = 0.03
+        self.commands.lip_step_command.nominal_step_width = 0.2
+        self.commands.lip_step_command.step_period_s = 0.25
+        self.commands.lip_step_command.use_cmd_heading = True
 
 @configclass
 class BDLipEnvCfg_Play(BDLipEnvCfg):
