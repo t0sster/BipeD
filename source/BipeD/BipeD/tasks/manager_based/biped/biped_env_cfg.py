@@ -59,6 +59,11 @@ class BDBaseEnvCfg_Play(BDBaseEnvCfg):
     def __post_init__(self):
         super().__post_init__()
 
+@configclass
+class BDBaseEnvCfg_Play(BDBaseEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+
         # make a smaller scene for play
         self.scene.num_envs = 32
 
@@ -99,6 +104,10 @@ class BDRoughEnvCfg_Play(BDBaseEnvCfg_Play):
 # Stairs Terrain #
 ##################
 
+###################
+# LIP Environment #
+###################
+
 @configclass
 class BDStairsEnvCfg(BDBaseEnvCfg):
     pass
@@ -107,6 +116,8 @@ class BDStairsEnvCfg(BDBaseEnvCfg):
 class BDStairsEnvCfg_Play(BDBaseEnvCfg_Play):
     pass
 
+        self.observations.policy.heights = None  # type: ignore
+        self.observations.critic.heights = None  # type: ignore
 
 ###################
 # LIP Environment #
@@ -119,17 +130,37 @@ class BDLipEnvCfg(BipedLipEnvCfg):
 
         self.scene.robot = BD_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot") # type: ignore
         self.scene.robot.init_state.joint_pos = {
+            # Left
             "J_L0":   0.0,
             "J_L1":  0.08,
             "J_L2":  0.56,
             "J_L3":  -1.12,
             "J_L4_ankle": -0.57,
-
+            # Right
             "J_R0":   0.0,
             "J_R1":  -0.08,
             "J_R2":  -0.56,
             "J_R3":  1.12,
             "J_R4_ankle": 0.57
+        }
+        
+        self.reward_params.base_height_target = 0.30
+        self.reward_params.weights = {
+            # rewards
+            "rew_lin_vel_xy": 4.0,
+            "rew_ang_vel_z": 2.0,
+            "rew_step_tracking": 3.0,
+            "rew_heading": 0.0,
+            "contact_schedule": 9.0,
+            # penalities
+            "base_height": 1.0,
+            "joint_torques": -1e-4,
+            "joint_vel": -1e-3,
+            "joint_pos_limits": -10,
+            "action_smoothness": -1e-3,
+            "ang_vel_xy": -1e-2,
+            "lin_vel_z": -1e-1,
+            "flat_orientation": -1,
         }
 
         self.events.add_base_mass.params["asset_cfg"].body_names = "base_link"
@@ -144,6 +175,19 @@ class BDLipEnvCfg(BipedLipEnvCfg):
 
         self.terminations.max_velocity.params["max_velocity"] = 3.0
 
+        # Step command settings (match reference-style explicit step geometry).
+        self.commands.lip_step_command.nominal_step_length = 0.02
+        self.commands.lip_step_command.nominal_step_width = 0.2
+        self.commands.lip_step_command.step_period_s = 0.24
+        self.commands.lip_step_command.use_cmd_heading = True
+
+        self.commands.base_velocity.ranges = mdp.UniformVelocityCommandCfg.Ranges(
+            lin_vel_x=(-0.3, 0.3), 
+            lin_vel_y=(-0.1, 0.1), 
+            ang_vel_z=(-0.75, 0.75), 
+            heading=(-math.pi, math.pi)
+        )
+
 @configclass
 class BDLipEnvCfg_Play(BDLipEnvCfg):
     def __post_init__(self):
@@ -153,7 +197,15 @@ class BDLipEnvCfg_Play(BDLipEnvCfg):
 
         # disable randomization for play
         self.observations.policy.enable_corruption = False
+
         # remove random pushing event
         # self.events.push_robot = None
+
         # remove random base mass addition event
-        # self.events.add_base_mass = None
+        self.events.add_base_mass = None # type: ignore
+        self.commands.base_velocity.ranges = mdp.UniformVelocityCommandCfg.Ranges(
+            lin_vel_x=(-0.3, 0.3), 
+            lin_vel_y=(-0.1, 0.1), 
+            ang_vel_z=(-0.75, 0.75),
+            heading=(-math.pi, math.pi)
+        )

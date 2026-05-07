@@ -34,19 +34,21 @@ class LipRewardParamsCfg:
     """Reward parameters for the LIP environment."""
 
     rew_shaping: float = 0.25
-    base_height_target: float = 0.37
+    base_height_target: float = 0.32
     step_position_sigma: float = 0.05
     step_yaw_sigma: float = 0.25
+    heading_sigma: float = 0.25
     contact_threshold: float = 1.0
     contact_sigma: float = 0.25
     weights: dict[str, float] = {
         # rewards
         "rew_lin_vel_xy": 4.0,
         "rew_ang_vel_z": 2.0,
-        "rew_base_height": 1.0,
         "rew_step_tracking": 3.0,
+        "rew_heading": 0.0,
         "contact_schedule": 9.0,
         # penalities
+        "base_height": 1.0,
         "joint_torques": -1e-4,
         "joint_vel": -1e-3,
         "joint_pos_limits": -10,
@@ -144,9 +146,10 @@ class CommandsLipCfg(CommandsCfg):
         self.base_velocity.heading_control_stiffness = 1.0
         self.base_velocity.resampling_time_range = (0.0, 5.0)
         self.base_velocity.rel_standing_envs = 0.2
-        self.base_velocity.rel_heading_envs = 0.0
+        self.base_velocity.rel_heading_envs = 1.0
         self.base_velocity.ranges = mdp.UniformVelocityCommandCfg.Ranges(
             lin_vel_x=(-0.5, 0.5), lin_vel_y=(-0.25, 0.25), ang_vel_z=(-0.75, 0.75), heading=(-math.pi, math.pi)
+            # lin_vel_x=(-0.5, 0.5), lin_vel_y=(0.0, 0.0), ang_vel_z=(0.0, 0.0), heading=(-math.pi, math.pi)
         )
 
 
@@ -173,6 +176,7 @@ class ObservationsLipCfg:
         # base_height = ObsTerm(func=mdp.base_pos_z, noise=UniformNoise(operation="add", n_min=-0.05, n_max=0.05))
         # base_lin_vel_world = ObsTerm(func=mdp.base_lin_vel, noise=UniformNoise(operation="add", n_min=-0.2, n_max=0.2))
 
+        base_heading = ObsTerm(func=mdp.base_heading, noise=UniformNoise(operation="add", n_min=-0.05, n_max=0.05))
         base_ang_vel = ObsTerm(func=mdp.base_ang_vel, noise=UniformNoise(operation="add", n_min=-0.1, n_max=0.1))
         proj_gravity = ObsTerm(func=mdp.projected_gravity, noise=UniformNoise(operation="add", n_min=-0.05, n_max=0.05))
         
@@ -196,6 +200,7 @@ class ObservationsLipCfg:
 
         # Policy observation
         
+        base_heading = ObsTerm(func=mdp.base_heading, noise=UniformNoise(operation="add", n_min=-0.05, n_max=0.05))
         base_ang_vel = ObsTerm(func=mdp.base_ang_vel, noise=UniformNoise(operation="add", n_min=-0.1, n_max=0.1))
         proj_gravity = ObsTerm(func=mdp.projected_gravity, noise=UniformNoise(operation="add", n_min=-0.05, n_max=0.05))
         
@@ -299,12 +304,6 @@ class RewardsLipCfg:
         params={"command_name": "base_velocity", "std": math.sqrt(0.25)}
     )
 
-    rew_base_height = RewTerm(
-        func=mdp.base_height_l2,
-        weight=1.0,
-        params={"target_height": 0.37}
-    )
-
     rew_step_tracking = RewTerm(
         func=mdp.step_command_tracking,
         weight=3.0,
@@ -313,6 +312,16 @@ class RewardsLipCfg:
             "command_name": "lip_step_command",
             "position_sigma": 0.05,
             "yaw_sigma": 0.25,
+        },
+    )
+
+    rew_heading = RewTerm(
+        func=mdp.heading_tracking,
+        weight=2.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot"),
+            "command_name": "base_velocity",
+            "heading_sigma": 0.25,
         },
     )
 
@@ -328,6 +337,11 @@ class RewardsLipCfg:
     )
 
     # Regularization
+    pen_base_height = RewTerm(
+        func=mdp.base_height_l2,
+        weight=1.0,
+        params={"target_height": 0.32}
+    )
     pen_joint_torq = RewTerm(func=mdp.joint_torques_l2, weight=-1e-4)
     pen_joint_vel = RewTerm(func=mdp.joint_vel_l2, weight=-1e-3)
     pen_joint_pos_limits = RewTerm(func=mdp.joint_pos_limits, weight=-10)
@@ -384,25 +398,30 @@ class BipedLipEnvCfg(ManagerBasedRLEnvCfg):
         self.decimation = 4
         self.episode_length_s = 20.0
         # viewer settings
-        self.viewer.eye = (8.0, 0.0, 5.0)
+        self.viewer.eye = (10.0, 10.0, 5.0)
+        self.viewer.lookat = (-5.0, 0.0, 0.0)
         # simulation settings
         self.sim.dt = 0.005
         self.sim.render_interval = 2 * self.decimation
         self.seed = 42
 
         params = self.reward_params
+        # rewards
         self.rewards.rew_lin_vel_xy.weight = params.weights["rew_lin_vel_xy"]
         self.rewards.rew_lin_vel_xy.params["std"] = math.sqrt(params.rew_shaping)
         self.rewards.rew_ang_vel_z.weight = params.weights["rew_ang_vel_z"]
         self.rewards.rew_ang_vel_z.params["std"] = math.sqrt(params.rew_shaping)
-        self.rewards.rew_base_height.weight = params.weights["rew_base_height"]
-        self.rewards.rew_base_height.params["target_height"] = params.base_height_target
         self.rewards.rew_step_tracking.weight = params.weights["rew_step_tracking"]
         self.rewards.rew_step_tracking.params["position_sigma"] = params.step_position_sigma
         self.rewards.rew_step_tracking.params["yaw_sigma"] = params.step_yaw_sigma
+        self.rewards.rew_heading.weight = params.weights["rew_heading"]
+        self.rewards.rew_heading.params["heading_sigma"] = params.heading_sigma
         self.rewards.rew_contact_schedule.weight = params.weights["contact_schedule"]
         self.rewards.rew_contact_schedule.params["threshold"] = params.contact_threshold
         self.rewards.rew_contact_schedule.params["sigma"] = params.contact_sigma
+        # penalities
+        self.rewards.pen_base_height.weight = params.weights["base_height"]
+        self.rewards.pen_base_height.params["target_height"] = params.base_height_target
         self.rewards.pen_joint_torq.weight = params.weights["joint_torques"]
         self.rewards.pen_joint_vel.weight = params.weights["joint_vel"]
         self.rewards.pen_joint_pos_limits.weight = params.weights["joint_pos_limits"]
