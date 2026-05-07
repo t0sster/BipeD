@@ -32,7 +32,7 @@ def robot_feet_contact_force(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg)
     """contact force of the robot feet"""
     contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name] # type: ignore
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-    contact_force_tensor = contact_sensor.data.net_forces_w_history.to(device)
+    contact_force_tensor = contact_sensor.data.net_forces_w_history.to(device) # type: ignore
     return contact_force_tensor.view(contact_force_tensor.shape[0], -1)
 
 
