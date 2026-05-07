@@ -44,11 +44,11 @@ class LipRewardParamsCfg:
         # rewards
         "rew_lin_vel_xy": 4.0,
         "rew_ang_vel_z": 2.0,
-        "rew_base_height": 1.0,
         "rew_step_tracking": 3.0,
-        "rew_heading": 2.0,
+        "rew_heading": 0.0,
         "contact_schedule": 9.0,
         # penalities
+        "base_height": 1.0,
         "joint_torques": -1e-4,
         "joint_vel": -1e-3,
         "joint_pos_limits": -10,
@@ -304,12 +304,6 @@ class RewardsLipCfg:
         params={"command_name": "base_velocity", "std": math.sqrt(0.25)}
     )
 
-    rew_base_height = RewTerm(
-        func=mdp.base_height_l2,
-        weight=1.0,
-        params={"target_height": 0.32}
-    )
-
     rew_step_tracking = RewTerm(
         func=mdp.step_command_tracking,
         weight=3.0,
@@ -343,6 +337,11 @@ class RewardsLipCfg:
     )
 
     # Regularization
+    pen_base_height = RewTerm(
+        func=mdp.base_height_l2,
+        weight=1.0,
+        params={"target_height": 0.32}
+    )
     pen_joint_torq = RewTerm(func=mdp.joint_torques_l2, weight=-1e-4)
     pen_joint_vel = RewTerm(func=mdp.joint_vel_l2, weight=-1e-3)
     pen_joint_pos_limits = RewTerm(func=mdp.joint_pos_limits, weight=-10)
@@ -407,12 +406,11 @@ class BipedLipEnvCfg(ManagerBasedRLEnvCfg):
         self.seed = 42
 
         params = self.reward_params
+        # rewards
         self.rewards.rew_lin_vel_xy.weight = params.weights["rew_lin_vel_xy"]
         self.rewards.rew_lin_vel_xy.params["std"] = math.sqrt(params.rew_shaping)
         self.rewards.rew_ang_vel_z.weight = params.weights["rew_ang_vel_z"]
         self.rewards.rew_ang_vel_z.params["std"] = math.sqrt(params.rew_shaping)
-        self.rewards.rew_base_height.weight = params.weights["rew_base_height"]
-        self.rewards.rew_base_height.params["target_height"] = params.base_height_target
         self.rewards.rew_step_tracking.weight = params.weights["rew_step_tracking"]
         self.rewards.rew_step_tracking.params["position_sigma"] = params.step_position_sigma
         self.rewards.rew_step_tracking.params["yaw_sigma"] = params.step_yaw_sigma
@@ -421,6 +419,9 @@ class BipedLipEnvCfg(ManagerBasedRLEnvCfg):
         self.rewards.rew_contact_schedule.weight = params.weights["contact_schedule"]
         self.rewards.rew_contact_schedule.params["threshold"] = params.contact_threshold
         self.rewards.rew_contact_schedule.params["sigma"] = params.contact_sigma
+        # penalities
+        self.rewards.pen_base_height.weight = params.weights["base_height"]
+        self.rewards.pen_base_height.params["target_height"] = params.base_height_target
         self.rewards.pen_joint_torq.weight = params.weights["joint_torques"]
         self.rewards.pen_joint_vel.weight = params.weights["joint_vel"]
         self.rewards.pen_joint_pos_limits.weight = params.weights["joint_pos_limits"]

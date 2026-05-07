@@ -134,16 +134,16 @@ class BDLipEnvCfg(BipedLipEnvCfg):
             "J_R4_ankle": 0.57
         }
         
-        self.reward_params.base_height_target = 0.32
+        self.reward_params.base_height_target = 0.30
         self.reward_params.weights = {
             # rewards
             "rew_lin_vel_xy": 4.0,
             "rew_ang_vel_z": 2.0,
-            "rew_base_height": 1.0,
             "rew_step_tracking": 3.0,
-            "rew_heading": 2.0,
+            "rew_heading": 0.0,
             "contact_schedule": 9.0,
             # penalities
+            "base_height": 1.0,
             "joint_torques": -1e-4,
             "joint_vel": -1e-3,
             "joint_pos_limits": -10,
@@ -166,10 +166,17 @@ class BDLipEnvCfg(BipedLipEnvCfg):
         self.terminations.max_velocity.params["max_velocity"] = 3.0
 
         # Step command settings (match reference-style explicit step geometry).
-        self.commands.lip_step_command.nominal_step_length = 0.03
+        self.commands.lip_step_command.nominal_step_length = 0.02
         self.commands.lip_step_command.nominal_step_width = 0.2
-        self.commands.lip_step_command.step_period_s = 0.25
+        self.commands.lip_step_command.step_period_s = 0.24
         self.commands.lip_step_command.use_cmd_heading = True
+
+        self.commands.base_velocity.ranges = mdp.UniformVelocityCommandCfg.Ranges(
+            lin_vel_x=(-0.3, 0.3), 
+            lin_vel_y=(-0.1, 0.1), 
+            ang_vel_z=(-0.75, 0.75), 
+            heading=(-math.pi, math.pi)
+        )
 
 @configclass
 class BDLipEnvCfg_Play(BDLipEnvCfg):
@@ -180,7 +187,15 @@ class BDLipEnvCfg_Play(BDLipEnvCfg):
 
         # disable randomization for play
         self.observations.policy.enable_corruption = False
+
         # remove random pushing event
         # self.events.push_robot = None
+
         # remove random base mass addition event
-        # self.events.add_base_mass = None
+        self.events.add_base_mass = None # type: ignore
+        self.commands.base_velocity.ranges = mdp.UniformVelocityCommandCfg.Ranges(
+            lin_vel_x=(-0.3, 0.3), 
+            lin_vel_y=(-0.1, 0.1), 
+            ang_vel_z=(-0.75, 0.75),
+            heading=(-math.pi, math.pi)
+        )

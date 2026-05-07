@@ -78,30 +78,22 @@ class LipStepCommand(CommandTerm):
 
         cmd = env.command_manager.get_command("base_velocity") # type: ignore
         cmd_vel = cmd[:, :2]
+        cmd_wz = cmd[:, 2:3]
         cmd_speed = torch.norm(cmd_vel, dim=1, keepdim=True)
-        cmd_heading = None
-        if cmd.shape[1] > 3:
-            cmd_heading = cmd[:, 3:4]
-
-        vel_heading = torch.atan2(cmd_vel[:, 1], cmd_vel[:, 0]).unsqueeze(1)
-        if cmd_heading is not None:
-            desired_heading = cmd_heading
-        else:
-            desired_heading = math_utils.wrap_to_pi(base_heading + vel_heading)
-
-        if self.cfg.use_cmd_heading:
-            if cmd_heading is not None:
-                heading = desired_heading
-            else:
-                heading = torch.where(cmd_speed > self.cfg.heading_speed_eps, desired_heading, base_heading)
-        else:
-            heading = base_heading
 
         if self.cfg.step_period_s is None:
             freq = gait_command[:, 0].clamp(min=1e-3)
             T = (0.5 / freq).unsqueeze(1)
         else:
             T = torch.full((self.num_envs, 1), self.cfg.step_period_s, device=self.device)
+
+        if self.cfg.use_cmd_heading:
+            vel_heading = torch.atan2(cmd_vel[:, 1], cmd_vel[:, 0]).unsqueeze(1)
+            desired_heading = math_utils.wrap_to_pi(base_heading + vel_heading + cmd_wz * T)
+            heading = torch.where(cmd_speed > self.cfg.heading_speed_eps, desired_heading,
+                                  math_utils.wrap_to_pi(base_heading + cmd_wz * T))
+        else:
+            heading = base_heading
 
         dstep_width = torch.full((self.num_envs, 1), self.cfg.nominal_step_width, device=self.device)
         if self.cfg.nominal_step_length is None:
