@@ -63,7 +63,7 @@ def compute_xcom_step_targets(
 
     if dstep_length is None:
         dstep_length = torch.norm(cmd_vel_xy, dim=1, keepdim=True) * T
-    b_x = dstep_length / (torch.exp(T * w) - 1.0)
+    b_x = dstep_length / (torch.exp(T * w) - 1.0) # pyright: ignore[reportOptionalOperand]
     b_y = dstep_width / (torch.exp(T * w) + 1.0)
 
     original_offset_x = -b_x

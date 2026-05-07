@@ -141,6 +141,7 @@ class BDLipEnvCfg(BipedLipEnvCfg):
             "rew_ang_vel_z": 2.0,
             "rew_base_height": 1.0,
             "rew_step_tracking": 3.0,
+            "rew_heading": 2.0,
             "contact_schedule": 9.0,
             # penalities
             "joint_torques": -1e-4,

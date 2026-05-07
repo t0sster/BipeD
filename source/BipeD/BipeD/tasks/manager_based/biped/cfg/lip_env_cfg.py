@@ -37,6 +37,7 @@ class LipRewardParamsCfg:
     base_height_target: float = 0.32
     step_position_sigma: float = 0.05
     step_yaw_sigma: float = 0.25
+    heading_sigma: float = 0.25
     contact_threshold: float = 1.0
     contact_sigma: float = 0.25
     weights: dict[str, float] = {
@@ -45,6 +46,7 @@ class LipRewardParamsCfg:
         "rew_ang_vel_z": 2.0,
         "rew_base_height": 1.0,
         "rew_step_tracking": 3.0,
+        "rew_heading": 2.0,
         "contact_schedule": 9.0,
         # penalities
         "joint_torques": -1e-4,
@@ -144,9 +146,10 @@ class CommandsLipCfg(CommandsCfg):
         self.base_velocity.heading_control_stiffness = 1.0
         self.base_velocity.resampling_time_range = (0.0, 5.0)
         self.base_velocity.rel_standing_envs = 0.2
-        self.base_velocity.rel_heading_envs = 0.0
+        self.base_velocity.rel_heading_envs = 1.0
         self.base_velocity.ranges = mdp.UniformVelocityCommandCfg.Ranges(
             lin_vel_x=(-0.5, 0.5), lin_vel_y=(-0.25, 0.25), ang_vel_z=(-0.75, 0.75), heading=(-math.pi, math.pi)
+            # lin_vel_x=(-0.5, 0.5), lin_vel_y=(0.0, 0.0), ang_vel_z=(0.0, 0.0), heading=(-math.pi, math.pi)
         )
 
 
@@ -173,6 +176,7 @@ class ObservationsLipCfg:
         # base_height = ObsTerm(func=mdp.base_pos_z, noise=UniformNoise(operation="add", n_min=-0.05, n_max=0.05))
         # base_lin_vel_world = ObsTerm(func=mdp.base_lin_vel, noise=UniformNoise(operation="add", n_min=-0.2, n_max=0.2))
 
+        base_heading = ObsTerm(func=mdp.base_heading, noise=UniformNoise(operation="add", n_min=-0.05, n_max=0.05))
         base_ang_vel = ObsTerm(func=mdp.base_ang_vel, noise=UniformNoise(operation="add", n_min=-0.1, n_max=0.1))
         proj_gravity = ObsTerm(func=mdp.projected_gravity, noise=UniformNoise(operation="add", n_min=-0.05, n_max=0.05))
         
@@ -196,6 +200,7 @@ class ObservationsLipCfg:
 
         # Policy observation
         
+        base_heading = ObsTerm(func=mdp.base_heading, noise=UniformNoise(operation="add", n_min=-0.05, n_max=0.05))
         base_ang_vel = ObsTerm(func=mdp.base_ang_vel, noise=UniformNoise(operation="add", n_min=-0.1, n_max=0.1))
         proj_gravity = ObsTerm(func=mdp.projected_gravity, noise=UniformNoise(operation="add", n_min=-0.05, n_max=0.05))
         
@@ -316,6 +321,16 @@ class RewardsLipCfg:
         },
     )
 
+    rew_heading = RewTerm(
+        func=mdp.heading_tracking,
+        weight=2.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot"),
+            "command_name": "base_velocity",
+            "heading_sigma": 0.25,
+        },
+    )
+
     rew_contact_schedule = RewTerm(
         func=mdp.contact_schedule,
         weight=9.0,
@@ -401,6 +416,8 @@ class BipedLipEnvCfg(ManagerBasedRLEnvCfg):
         self.rewards.rew_step_tracking.weight = params.weights["rew_step_tracking"]
         self.rewards.rew_step_tracking.params["position_sigma"] = params.step_position_sigma
         self.rewards.rew_step_tracking.params["yaw_sigma"] = params.step_yaw_sigma
+        self.rewards.rew_heading.weight = params.weights["rew_heading"]
+        self.rewards.rew_heading.params["heading_sigma"] = params.heading_sigma
         self.rewards.rew_contact_schedule.weight = params.weights["contact_schedule"]
         self.rewards.rew_contact_schedule.params["threshold"] = params.contact_threshold
         self.rewards.rew_contact_schedule.params["sigma"] = params.contact_sigma

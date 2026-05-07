@@ -173,6 +173,11 @@ def _base_heading(asset: Articulation, device: torch.device) -> torch.Tensor:
     return torch.atan2(base_forward[:, 1], base_forward[:, 0]).unsqueeze(1)
 
 
+def base_heading(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    asset: Articulation = env.scene[asset_cfg.name]
+    return _base_heading(asset, asset.device) # type: ignore
+
+
 def _foot_states_rel(
     env: ManagerBasedEnv,
     foot_body_names: list[str],
