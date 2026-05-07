@@ -32,8 +32,6 @@ def compute_xcom_step_targets(
     heading: torch.Tensor,
     T: torch.Tensor,
     dstep_width: torch.Tensor,
-    dstep_length: torch.Tensor | None = None,
-    left_swing: torch.Tensor | None = None,
     g: float = 9.81,
 ) -> torch.Tensor:
     """Compute XCoM step target for the swing foot.
@@ -61,15 +59,12 @@ def compute_xcom_step_targets(
     eicp_x = x_f_world + vx_f / w
     eicp_y = y_f_world + vy_f / w
 
-    if dstep_length is None:
-        dstep_length = torch.norm(cmd_vel_xy, dim=1, keepdim=True) * T
-    b_x = dstep_length / (torch.exp(T * w) - 1.0) # pyright: ignore[reportOptionalOperand]
+    dstep_length = torch.norm(cmd_vel_xy, dim=1, keepdim=True) * T
+    b_x = dstep_length / (torch.exp(T * w) - 1.0)
     b_y = dstep_width / (torch.exp(T * w) + 1.0)
 
     original_offset_x = -b_x
     original_offset_y = -b_y
-    if left_swing is not None:
-        original_offset_y[left_swing] = b_y[left_swing]
 
     offset_x = torch.cos(heading) * original_offset_x - torch.sin(heading) * original_offset_y
     offset_y = torch.sin(heading) * original_offset_x + torch.cos(heading) * original_offset_y

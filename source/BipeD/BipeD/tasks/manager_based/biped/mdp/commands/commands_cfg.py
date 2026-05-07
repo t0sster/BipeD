@@ -44,13 +44,6 @@ class LipStepCommandCfg(CommandTermCfg):
     # feet order must be [RIGHT, LEFT]
     foot_body_names: tuple[str, str] = ("R4_Link_ankle", "L4_Link_ankle")
 
-    # Desired step geometry and timing (half-step duration).
-    nominal_step_length: float | None = None
     nominal_step_width: float = 0.22
-    step_period_s: float | None = None
-
-    # Use commanded velocity direction for step yaw when speed is non-trivial.
-    use_cmd_heading: bool = True
-    heading_speed_eps: float = 1e-3
 
     resampling_time_range: tuple[float, float] = MISSING  # type: ignore
