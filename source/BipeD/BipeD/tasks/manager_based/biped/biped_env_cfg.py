@@ -59,11 +59,6 @@ class BDBaseEnvCfg_Play(BDBaseEnvCfg):
     def __post_init__(self):
         super().__post_init__()
 
-@configclass
-class BDBaseEnvCfg_Play(BDBaseEnvCfg):
-    def __post_init__(self):
-        super().__post_init__()
-
         # make a smaller scene for play
         self.scene.num_envs = 32
 
