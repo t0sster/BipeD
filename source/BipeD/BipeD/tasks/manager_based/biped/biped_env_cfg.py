@@ -54,6 +54,10 @@ class BDBaseEnvCfg(BipedEnvCfg):
 
         self.terminations.max_velocity.params["max_velocity"] = 3.0
 
+@configclass
+class BDBaseEnvCfg_Play(BDBaseEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
 
 @configclass
 class BDBaseEnvCfg_Play(BDBaseEnvCfg):
@@ -100,6 +104,10 @@ class BDRoughEnvCfg_Play(BDBaseEnvCfg_Play):
 # Stairs Terrain #
 ##################
 
+###################
+# LIP Environment #
+###################
+
 @configclass
 class BDStairsEnvCfg(BDBaseEnvCfg):
     pass
@@ -108,6 +116,8 @@ class BDStairsEnvCfg(BDBaseEnvCfg):
 class BDStairsEnvCfg_Play(BDBaseEnvCfg_Play):
     pass
 
+        self.observations.policy.heights = None  # type: ignore
+        self.observations.critic.heights = None  # type: ignore
 
 ###################
 # LIP Environment #
