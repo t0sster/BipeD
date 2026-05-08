@@ -91,6 +91,21 @@ def step_command_tracking(
     return 0.5 * (reward_pos + reward_yaw).mean(dim=1)
 
 
+def feet_air_time(
+    env: ManagerBasedRLEnv,
+    sensor_cfg: SceneEntityCfg,
+    command_name: str = "base_velocity",
+    threshold: float = 0.4,
+) -> torch.Tensor:
+    """Reward longer swing times when tracking non-zero commands."""
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    first_contact = contact_sensor.compute_first_contact(env.step_dt)[:, sensor_cfg.body_ids]
+    last_air_time = contact_sensor.data.last_air_time[:, sensor_cfg.body_ids]
+    reward = torch.sum((last_air_time - threshold) * first_contact, dim=1)
+    reward *= torch.norm(env.command_manager.get_command(command_name)[:, :2], dim=1) > 0.1
+    return reward
+
+
 def heading_tracking(
     env: ManagerBasedRLEnv,
     asset_cfg: SceneEntityCfg,

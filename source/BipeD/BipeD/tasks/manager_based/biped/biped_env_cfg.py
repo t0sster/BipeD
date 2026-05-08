@@ -111,9 +111,6 @@ class BDStairsEnvCfg(BDBaseEnvCfg):
 class BDStairsEnvCfg_Play(BDBaseEnvCfg_Play):
     pass
 
-        self.observations.policy.heights = None  # type: ignore
-        self.observations.critic.heights = None  # type: ignore
-
 ###################
 # LIP Environment #
 ###################
@@ -145,8 +142,9 @@ class BDLipEnvCfg(BipedLipEnvCfg):
             "rew_lin_vel_xy": 4.0,
             "rew_ang_vel_z": 2.0,
             "rew_step_tracking": 3.0,
-            "rew_heading": 0.0,
-            "contact_schedule": 9.0,
+            "rew_heading": 0.5,
+            "rew_feet_air_time": 1.0,
+            "contact_schedule": 1.0,
             # penalities
             "base_height": 1.0,
             "joint_torques": -1e-4,

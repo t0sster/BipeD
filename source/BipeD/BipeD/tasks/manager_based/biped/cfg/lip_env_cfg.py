@@ -34,19 +34,21 @@ class LipRewardParamsCfg:
     """Reward parameters for the LIP environment."""
 
     rew_shaping: float = 0.25
-    base_height_target: float = 0.32
+    base_height_target: float = 0.30
     step_position_sigma: float = 0.05
     step_yaw_sigma: float = 0.25
     heading_sigma: float = 0.25
     contact_threshold: float = 1.0
     contact_sigma: float = 0.25
+    feet_air_time_threshold: float = 0.4
     weights: dict[str, float] = {
         # rewards
         "rew_lin_vel_xy": 4.0,
         "rew_ang_vel_z": 2.0,
         "rew_step_tracking": 3.0,
-        "rew_heading": 0.0,
-        "contact_schedule": 9.0,
+        "rew_heading": 0.5,
+        "rew_feet_air_time": 1.0,
+        "contact_schedule": 1.0,
         # penalities
         "base_height": 1.0,
         "joint_torques": -1e-4,
@@ -103,11 +105,7 @@ class BDLipSceneCfg(InteractiveSceneCfg):
             texture_file=f"{ISAAC_NUCLEUS_DIR}/Materials/Textures/Skies/PolyHaven/kloofendal_43d_clear_puresky_4k.hdr"),
     )
 
-    # robot
-    # robot: ArticulationCfg = CARTPOLE_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot") # type: ignore
     robot: ArticulationCfg = MISSING # type: ignore
-
-    ##TODO: continue with cfg 
 
     contact_forces = ContactSensorCfg(
         prim_path="{ENV_REGEX_NS}/Robot/.*", history_length=4, track_air_time=True, update_period=0.0
@@ -176,7 +174,7 @@ class ObservationsLipCfg:
         # base_height = ObsTerm(func=mdp.base_pos_z, noise=UniformNoise(operation="add", n_min=-0.05, n_max=0.05))
         # base_lin_vel_world = ObsTerm(func=mdp.base_lin_vel, noise=UniformNoise(operation="add", n_min=-0.2, n_max=0.2))
 
-        base_heading = ObsTerm(func=mdp.base_heading, noise=UniformNoise(operation="add", n_min=-0.05, n_max=0.05))
+        # base_heading = ObsTerm(func=mdp.base_heading, noise=UniformNoise(operation="add", n_min=-0.05, n_max=0.05))
         base_ang_vel = ObsTerm(func=mdp.base_ang_vel, noise=UniformNoise(operation="add", n_min=-0.1, n_max=0.1))
         proj_gravity = ObsTerm(func=mdp.projected_gravity, noise=UniformNoise(operation="add", n_min=-0.05, n_max=0.05))
         
@@ -200,7 +198,6 @@ class ObservationsLipCfg:
 
         # Policy observation
         
-        base_heading = ObsTerm(func=mdp.base_heading, noise=UniformNoise(operation="add", n_min=-0.05, n_max=0.05))
         base_ang_vel = ObsTerm(func=mdp.base_ang_vel, noise=UniformNoise(operation="add", n_min=-0.1, n_max=0.1))
         proj_gravity = ObsTerm(func=mdp.projected_gravity, noise=UniformNoise(operation="add", n_min=-0.05, n_max=0.05))
         
@@ -218,6 +215,8 @@ class ObservationsLipCfg:
 
         # Privileged observation
 
+        base_height = ObsTerm(func=mdp.base_pos_z)
+        base_heading = ObsTerm(func=mdp.base_heading)
         base_lin_vel = ObsTerm(func=mdp.base_lin_vel)
         robot_joint_torque = ObsTerm(func=mdp.robot_joint_torque)
         robot_joint_acc = ObsTerm(func=mdp.robot_joint_acc)
@@ -227,7 +226,6 @@ class ObservationsLipCfg:
                 "sensor_cfg": SceneEntityCfg("contact_forces", body_names=[".*[LR]4.*ankle.*"]),
             },
         )
-
         robot_mass = ObsTerm(func=mdp.robot_mass)
         robot_inertia = ObsTerm(func=mdp.robot_inertia)
         robot_joint_stiffness = ObsTerm(func=mdp.robot_joint_stiffness)
@@ -325,22 +323,32 @@ class RewardsLipCfg:
         },
     )
 
-    rew_contact_schedule = RewTerm(
+    rew_feet_air_time = RewTerm(
+        func=mdp.feet_air_time,
+        weight=0.5,
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["R4_Link_ankle", "L4_Link_ankle"]),
+            "command_name": "base_velocity",
+            "threshold": 0.4,
+        },
+    )
+
+    '''rew_contact_schedule = RewTerm(
         func=mdp.contact_schedule,
-        weight=9.0,
+        weight=2.0,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["R4_Link_ankle", "L4_Link_ankle"]),
             "command_name": "gait_command",
             "threshold": 1.0,
             "sigma": 0.25,
         },
-    )
+    )'''
 
     # Regularization
     pen_base_height = RewTerm(
         func=mdp.base_height_l2,
         weight=1.0,
-        params={"target_height": 0.32}
+        params={"target_height": 0.30}
     )
     pen_joint_torq = RewTerm(func=mdp.joint_torques_l2, weight=-1e-4)
     pen_joint_vel = RewTerm(func=mdp.joint_vel_l2, weight=-1e-3)
@@ -416,9 +424,11 @@ class BipedLipEnvCfg(ManagerBasedRLEnvCfg):
         self.rewards.rew_step_tracking.params["yaw_sigma"] = params.step_yaw_sigma
         self.rewards.rew_heading.weight = params.weights["rew_heading"]
         self.rewards.rew_heading.params["heading_sigma"] = params.heading_sigma
-        self.rewards.rew_contact_schedule.weight = params.weights["contact_schedule"]
-        self.rewards.rew_contact_schedule.params["threshold"] = params.contact_threshold
-        self.rewards.rew_contact_schedule.params["sigma"] = params.contact_sigma
+        self.rewards.rew_feet_air_time.weight = params.weights["rew_feet_air_time"]
+        self.rewards.rew_feet_air_time.params["threshold"] = params.feet_air_time_threshold
+        # self.rewards.rew_contact_schedule.weight = params.weights["contact_schedule"]
+        # self.rewards.rew_contact_schedule.params["threshold"] = params.contact_threshold
+        # self.rewards.rew_contact_schedule.params["sigma"] = params.contact_sigma
         # penalities
         self.rewards.pen_base_height.weight = params.weights["base_height"]
         self.rewards.pen_base_height.params["target_height"] = params.base_height_target
