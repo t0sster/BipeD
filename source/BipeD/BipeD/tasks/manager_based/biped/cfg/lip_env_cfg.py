@@ -40,7 +40,8 @@ class LipRewardParamsCfg:
     heading_sigma: float = 0.25
     contact_threshold: float = 1.0
     contact_sigma: float = 0.25
-    feet_air_time_threshold: float = 0.4
+    feet_air_time_scale: float = 0.4
+    feet_air_time_min_threshold: float = 0.1
     weights: dict[str, float] = {
         # rewards
         "rew_lin_vel_xy": 4.0,
@@ -344,6 +345,9 @@ class RewardsLipCfg:
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["R4_Link_ankle", "L4_Link_ankle"]),
             "command_name": "base_velocity",
             "threshold": 0.4,
+            "gait_command_name": "gait_command",
+            "swing_time_scale": 0.5,
+            "min_threshold": 0.0,
         },
     )
 
@@ -439,7 +443,8 @@ class BipedLipEnvCfg(ManagerBasedRLEnvCfg):
         self.rewards.rew_heading.weight = params.weights["rew_heading"]
         self.rewards.rew_heading.params["heading_sigma"] = params.heading_sigma
         self.rewards.rew_feet_air_time.weight = params.weights["rew_feet_air_time"]
-        self.rewards.rew_feet_air_time.params["threshold"] = params.feet_air_time_threshold
+        self.rewards.rew_feet_air_time.params["swing_time_scale"] = params.feet_air_time_scale
+        self.rewards.rew_feet_air_time.params["min_threshold"] = params.feet_air_time_min_threshold
         # self.rewards.rew_contact_schedule.weight = params.weights["contact_schedule"]
         # self.rewards.rew_contact_schedule.params["threshold"] = params.contact_threshold
         # self.rewards.rew_contact_schedule.params["sigma"] = params.contact_sigma

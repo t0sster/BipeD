@@ -96,12 +96,24 @@ def feet_air_time(
     sensor_cfg: SceneEntityCfg,
     command_name: str = "base_velocity",
     threshold: float = 0.4,
+    gait_command_name: str | None = None,
+    swing_time_scale: float = 0.5,
+    min_threshold: float = 0.0,
 ) -> torch.Tensor:
     """Reward longer swing times when tracking non-zero commands."""
     contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
     first_contact = contact_sensor.compute_first_contact(env.step_dt)[:, sensor_cfg.body_ids]
     last_air_time = contact_sensor.data.last_air_time[:, sensor_cfg.body_ids]
-    reward = torch.sum((last_air_time - threshold) * first_contact, dim=1)
+    if gait_command_name is not None:
+        gait_cmd = env.command_manager.get_command(gait_command_name)
+        freq = gait_cmd[:, 0].clamp(min=1e-3)
+        duration = gait_cmd[:, 2].clamp(0.05, 0.95)
+        swing_time = (1.0 - duration) / freq
+        dyn_threshold = torch.clamp(swing_time_scale * swing_time, min=min_threshold).unsqueeze(1)
+    else:
+        dyn_threshold = threshold
+
+    reward = torch.sum((last_air_time - dyn_threshold) * first_contact, dim=1)
     reward *= torch.norm(env.command_manager.get_command(command_name)[:, :2], dim=1) > 0.1
     return reward
 

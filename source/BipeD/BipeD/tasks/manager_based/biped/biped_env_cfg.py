@@ -192,6 +192,9 @@ class BDLipEnvCfg(BipedLipEnvCfg):
             heading=(-math.pi, math.pi)
         )
 
+        self.reward_params.feet_air_time_scale = 0.4
+        self.reward_params.feet_air_time_min_threshold = 0.1
+
 @configclass
 class BDLipEnvCfg_Play(BDLipEnvCfg):
     def __post_init__(self):
