@@ -137,6 +137,11 @@ class CommandsLipCfg(CommandsCfg):
         resampling_time_range=(1e6, 1e6),
     )
 
+    base_height_command = mdp.BaseHeightCommandCfg(
+        resampling_time_range=(1e6, 1e6),
+        ranges=mdp.BaseHeightCommandCfg.Ranges(height=(0.30, 0.30)),
+    )
+
     def __post_init__(self):
         self.base_velocity.asset_name = "robot"
         self.base_velocity.heading_command = True
@@ -186,6 +191,11 @@ class ObservationsLipCfg:
 
         commands = ObsTerm(func=mdp.generated_commands, 
                            params={"command_name": "base_velocity"})
+
+        base_height_command = ObsTerm(
+            func=mdp.generated_commands,
+            params={"command_name": "base_height_command"},
+        )
         
         gait_phase = ObsTerm(func=mdp.get_gait_phase)
 
@@ -208,6 +218,10 @@ class ObservationsLipCfg:
         step_command_left = ObsTerm(func=mdp.step_command_left)
 
         commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
+        base_height_command = ObsTerm(
+            func=mdp.generated_commands,
+            params={"command_name": "base_height_command"},
+        )
         gait_phase = ObsTerm(func=mdp.get_gait_phase)
 
         joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=UniformNoise(operation="add", n_min=-0.01, n_max=0.01))
@@ -346,9 +360,9 @@ class RewardsLipCfg:
 
     # Regularization
     pen_base_height = RewTerm(
-        func=mdp.base_height_l2,
+        func=mdp.base_height_tracking_l2,
         weight=1.0,
-        params={"target_height": 0.30}
+        params={"command_name": "base_height_command"}
     )
     pen_joint_torq = RewTerm(func=mdp.joint_torques_l2, weight=-1e-4)
     pen_joint_vel = RewTerm(func=mdp.joint_vel_l2, weight=-1e-3)
@@ -431,7 +445,6 @@ class BipedLipEnvCfg(ManagerBasedRLEnvCfg):
         # self.rewards.rew_contact_schedule.params["sigma"] = params.contact_sigma
         # penalities
         self.rewards.pen_base_height.weight = params.weights["base_height"]
-        self.rewards.pen_base_height.params["target_height"] = params.base_height_target
         self.rewards.pen_joint_torq.weight = params.weights["joint_torques"]
         self.rewards.pen_joint_vel.weight = params.weights["joint_vel"]
         self.rewards.pen_joint_pos_limits.weight = params.weights["joint_pos_limits"]

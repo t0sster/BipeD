@@ -136,6 +136,17 @@ def heading_tracking(
     reward = torch.exp(-torch.square(err) / heading_sigma)
     return reward.squeeze(1)
 
+
+def base_height_tracking_l2(
+    env: ManagerBasedRLEnv,
+    command_name: str = "base_height_command",
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Penalize deviation from commanded base height using L2 squared kernel."""
+    asset: RigidObject = env.scene[asset_cfg.name]
+    target = env.command_manager.get_command(command_name).squeeze(1)
+    return torch.square(asset.data.root_pos_w[:, 2] - target)
+
 ############
 #   Base   #
 ############

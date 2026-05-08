@@ -5,6 +5,7 @@ from isaaclab.managers import CommandTermCfg
 from isaaclab.utils import configclass
 
 from .gait_command import GaitCommand
+from .base_height_command import BaseHeightCommand
 from .lip_command import LipStepCommand
 
 
@@ -38,6 +39,17 @@ class LipStepCommandCfg(CommandTermCfg):
 
     class_type: type = LipStepCommand
 
+    @configclass
+    class Ranges:
+        """Uniform distribution ranges for step parameters."""
+
+        step_length: tuple[float, float] | None = None
+        """Range for step length [m]. If None, uses nominal or velocity-based length."""
+        step_width: tuple[float, float] | None = None
+        """Range for step width [m]. If None, uses nominal value."""
+        step_period_s: tuple[float, float] | None = None
+        """Range for step period [s]. If None, uses nominal or gait frequency."""
+
     asset_name: str = "robot"
     update_period: float = 0.1
 
@@ -52,5 +64,27 @@ class LipStepCommandCfg(CommandTermCfg):
     # Use commanded velocity direction for step yaw when speed is non-trivial.
     use_cmd_heading: bool = True
     heading_speed_eps: float = 1e-3
+
+    ranges: Ranges | None = None
+    """Optional ranges for step parameters."""
+
+    resampling_time_range: tuple[float, float] = MISSING  # type: ignore
+
+
+@configclass
+class BaseHeightCommandCfg(CommandTermCfg):
+    """Configuration for base height command generator."""
+
+    class_type: type = BaseHeightCommand
+
+    @configclass
+    class Ranges:
+        """Uniform distribution ranges for base height."""
+
+        height: tuple[float, float] = MISSING # type: ignore
+        """Range for base height [m]."""
+
+    ranges: Ranges = MISSING # type: ignore
+    """Distribution ranges for base height."""
 
     resampling_time_range: tuple[float, float] = MISSING  # type: ignore

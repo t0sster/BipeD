@@ -31,6 +31,37 @@ class LipStepCommand(CommandTerm):
 
         self._forward = torch.tensor([1.0, 0.0, 0.0], device=self.device)
 
+        self._use_step_length = cfg.nominal_step_length is not None
+        self._use_step_period = cfg.step_period_s is not None
+        if cfg.ranges is not None:
+            if cfg.ranges.step_length is not None:
+                self._use_step_length = True
+            if cfg.ranges.step_period_s is not None:
+                self._use_step_period = True
+
+        self._step_length = torch.full(
+            (self.num_envs, 1),
+            cfg.nominal_step_length if cfg.nominal_step_length is not None else 0.0,
+            device=self.device,
+        )
+        self._step_width = torch.full((self.num_envs, 1), cfg.nominal_step_width, device=self.device)
+        self._step_period = torch.full(
+            (self.num_envs, 1),
+            cfg.step_period_s if cfg.step_period_s is not None else 0.0,
+            device=self.device,
+        )
+
+        if cfg.ranges is not None:
+            if cfg.ranges.step_length is not None:
+                mean_len = sum(cfg.ranges.step_length) * 0.5
+                self._step_length.fill_(mean_len)
+            if cfg.ranges.step_width is not None:
+                mean_width = sum(cfg.ranges.step_width) * 0.5
+                self._step_width.fill_(mean_width)
+            if cfg.ranges.step_period_s is not None:
+                mean_period = sum(cfg.ranges.step_period_s) * 0.5
+                self._step_period.fill_(mean_period)
+
     def __str__(self) -> str:
         msg = "LipStepCommand:\n"
         msg += f"\tCommand dimension: {tuple(self.command.shape[1:])}\n"
@@ -81,7 +112,9 @@ class LipStepCommand(CommandTerm):
         cmd_wz = cmd[:, 2:3]
         cmd_speed = torch.norm(cmd_vel, dim=1, keepdim=True)
 
-        if self.cfg.step_period_s is None:
+        if self._use_step_period:
+            T = self._step_period
+        elif self.cfg.step_period_s is None:
             freq = gait_command[:, 0].clamp(min=1e-3)
             T = (0.5 / freq).unsqueeze(1)
         else:
@@ -95,11 +128,11 @@ class LipStepCommand(CommandTerm):
         else:
             heading = base_heading
 
-        dstep_width = torch.full((self.num_envs, 1), self.cfg.nominal_step_width, device=self.device)
-        if self.cfg.nominal_step_length is None:
-            dstep_length = None
+        dstep_width = self._step_width
+        if self._use_step_length:
+            dstep_length = self._step_length
         else:
-            dstep_length = torch.full((self.num_envs, 1), self.cfg.nominal_step_length, device=self.device)
+            dstep_length = None
 
         support_pos = torch.where(
             swing_right.unsqueeze(1),
@@ -147,7 +180,17 @@ class LipStepCommand(CommandTerm):
         return self.step_target_command[env_ids]
 
     def _resample_command(self, env_ids):
-        pass
+        if self.cfg.ranges is None:
+            return
+
+        r = torch.empty(len(env_ids), device=self.device)
+
+        if self.cfg.ranges.step_length is not None:
+            self._step_length[env_ids, 0] = r.uniform_(*self.cfg.ranges.step_length)
+        if self.cfg.ranges.step_width is not None:
+            self._step_width[env_ids, 0] = r.uniform_(*self.cfg.ranges.step_width)
+        if self.cfg.ranges.step_period_s is not None:
+            self._step_period[env_ids, 0] = r.uniform_(*self.cfg.ranges.step_period_s)
 
     def _update_metrics(self):
         pass

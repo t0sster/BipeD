@@ -136,6 +136,8 @@ class BDLipEnvCfg(BipedLipEnvCfg):
             "J_R4_ankle": 0.57
         }
         
+        self.episode_length_s = 20.0
+
         self.reward_params.base_height_target = 0.30
         self.reward_params.weights = {
             # rewards
@@ -173,6 +175,15 @@ class BDLipEnvCfg(BipedLipEnvCfg):
         self.commands.lip_step_command.nominal_step_width = 0.2
         self.commands.lip_step_command.step_period_s = 0.24
         self.commands.lip_step_command.use_cmd_heading = True
+        self.commands.lip_step_command.ranges = mdp.LipStepCommandCfg.Ranges(
+            step_length=(0.01, 0.05),
+            step_width=(0.18, 0.22),
+            step_period_s=(0.2, 0.3),
+        )
+
+        self.commands.base_height_command.ranges = mdp.BaseHeightCommandCfg.Ranges(
+            height=(self.reward_params.base_height_target, self.reward_params.base_height_target)
+        )
 
         self.commands.base_velocity.ranges = mdp.UniformVelocityCommandCfg.Ranges(
             lin_vel_x=(-0.3, 0.3), 
