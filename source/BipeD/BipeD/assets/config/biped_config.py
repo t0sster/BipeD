@@ -22,8 +22,8 @@ BD_CFG = ArticulationCfg(
 
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
             enabled_self_collisions=True,       # works only with primitives
-            solver_position_iteration_count=2,
-            solver_velocity_iteration_count=2,
+            solver_position_iteration_count=6,
+            solver_velocity_iteration_count=4,
         ),
 
         activate_contact_sensors=True,

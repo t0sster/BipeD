@@ -29,39 +29,6 @@ from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import Co
 from BipeD.tasks.manager_based.biped import mdp
 
 
-@configclass
-class LipRewardParamsCfg:
-    """Reward parameters for the LIP environment."""
-
-    rew_shaping: float = 0.25
-    base_height_target: float = 0.30
-    step_position_sigma: float = 0.05
-    step_yaw_sigma: float = 0.25
-    heading_sigma: float = 0.25
-    contact_threshold: float = 1.0
-    contact_sigma: float = 0.25
-    feet_air_time_scale: float = 0.4
-    feet_air_time_min_threshold: float = 0.1
-    weights: dict[str, float] = {
-        # rewards
-        "rew_lin_vel_xy": 4.0,
-        "rew_ang_vel_z": 2.0,
-        "rew_step_tracking": 3.0,
-        "rew_heading": 0.5,
-        "rew_feet_air_time": 1.0,
-        "contact_schedule": 1.0,
-        # penalities
-        "base_height": 1.0,
-        "joint_torques": -1e-4,
-        "joint_vel": -1e-3,
-        "joint_pos_limits": -10,
-        "action_smoothness": -1e-3,
-        "ang_vel_xy": -1e-2,
-        "lin_vel_z": -1e-1,
-        "flat_orientation": -1,
-    }
-
-
 ##
 # Scene definition
 ##
@@ -84,8 +51,8 @@ class BDLipSceneCfg(InteractiveSceneCfg):
         physics_material=RigidBodyMaterialCfg(
             friction_combine_mode="multiply",
             restitution_combine_mode="multiply",
-            static_friction=1.0,
-            dynamic_friction=1.0,
+            static_friction=1.5,
+            dynamic_friction=1.2,
             restitution=1.0,
         ),
         visual_material=MdlFileCfg(
@@ -190,13 +157,13 @@ class ObservationsLipCfg:
         foot_target_right = ObsTerm(func=mdp.step_command_right)
         foot_target_left = ObsTerm(func=mdp.step_command_left)
 
-        commands = ObsTerm(func=mdp.generated_commands, 
-                           params={"command_name": "base_velocity"})
+        commands = ObsTerm(
+            func=mdp.generated_commands, 
+            params={"command_name": "base_velocity"})
 
         base_height_command = ObsTerm(
             func=mdp.generated_commands,
-            params={"command_name": "base_height_command"},
-        )
+            params={"command_name": "base_height_command"})
         
         gait_phase = ObsTerm(func=mdp.get_gait_phase)
 
@@ -301,6 +268,41 @@ class EventsLipCfg:
 
 
 @configclass
+class LipRewardParamsCfg:
+    """Reward parameters for the LIP environment."""
+
+    rew_shaping: float = 0.25
+    base_height_target: float = 0.30
+    
+    step_position_sigma: float = 0.05
+    step_yaw_sigma: float = 0.25
+    heading_sigma: float = 0.25
+    contact_threshold: float = 1.0
+    contact_sigma: float = 0.25
+    feet_air_time_scale: float = 0.4
+    feet_air_time_min_threshold: float = 0.1
+    weights: dict[str, float] = {
+        # rewards
+        "rew_lin_vel_xy": 4.0,
+        "rew_ang_vel_z": 2.0,
+        "rew_step_tracking": 3.0,
+        "rew_heading": 0.5,
+        "rew_feet_air_time": 1.0,
+        "contact_schedule": 0.0,
+        # penalities
+        "base_height": -1.0,
+        "joint_torques": -1e-4,
+        "joint_vel": -1e-3,
+        "joint_pos_limits": -10,
+        "foot_slip": -0.2,
+        "action_smoothness": -1e-3,
+        "ang_vel_xy": -1e-2,
+        "lin_vel_z": -1e-1,
+        "flat_orientation": -1.0,
+    }
+
+
+@configclass
 class RewardsLipCfg:
     """Reward specifications for the MDP."""
     
@@ -323,8 +325,8 @@ class RewardsLipCfg:
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=["R4_Link_ankle", "L4_Link_ankle"]),
             "command_name": "lip_step_command",
-            "position_sigma": 0.05,
-            "yaw_sigma": 0.25,
+            "position_sigma": 0.01,
+            "yaw_sigma": 0.05,
         },
     )
 
@@ -334,7 +336,7 @@ class RewardsLipCfg:
         params={
             "asset_cfg": SceneEntityCfg("robot"),
             "command_name": "base_velocity",
-            "heading_sigma": 0.25,
+            "heading_sigma": 0.05,
         },
     )
 
@@ -348,19 +350,21 @@ class RewardsLipCfg:
             "gait_command_name": "gait_command",
             "swing_time_scale": 0.5,
             "min_threshold": 0.0,
+            "dense": True,
+            "contact_force_threshold": 1.0,
         },
     )
 
-    '''rew_contact_schedule = RewTerm(
+    rew_contact_schedule = RewTerm(
         func=mdp.contact_schedule,
         weight=2.0,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["R4_Link_ankle", "L4_Link_ankle"]),
             "command_name": "gait_command",
             "threshold": 1.0,
-            "sigma": 0.25,
+            "sigma": 0.05,
         },
-    )'''
+    )
 
     # Regularization
     pen_base_height = RewTerm(
@@ -371,6 +375,15 @@ class RewardsLipCfg:
     pen_joint_torq = RewTerm(func=mdp.joint_torques_l2, weight=-1e-4)
     pen_joint_vel = RewTerm(func=mdp.joint_vel_l2, weight=-1e-3)
     pen_joint_pos_limits = RewTerm(func=mdp.joint_pos_limits, weight=-10)
+    pen_foot_slip = RewTerm(
+        func=mdp.foot_slip_penalty,
+        weight=-0.2,
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["R4_Link_ankle", "L4_Link_ankle"]),
+            "asset_cfg": SceneEntityCfg("robot", body_names=["R4_Link_ankle", "L4_Link_ankle"]),
+            "contact_threshold": 1.0,
+        },
+    )
     pen_action_smoothness = RewTerm(func=mdp.ActionSmoothnessPenalty, weight=-1e-3) # type: ignore
     pen_ang_vel_xy = RewTerm(func=mdp.ang_vel_xy_l2, weight=-1e-2)
     pen_lin_vel_z = RewTerm(func=mdp.lin_vel_z_l2, weight=-1e-1)
@@ -445,14 +458,15 @@ class BipedLipEnvCfg(ManagerBasedRLEnvCfg):
         self.rewards.rew_feet_air_time.weight = params.weights["rew_feet_air_time"]
         self.rewards.rew_feet_air_time.params["swing_time_scale"] = params.feet_air_time_scale
         self.rewards.rew_feet_air_time.params["min_threshold"] = params.feet_air_time_min_threshold
-        # self.rewards.rew_contact_schedule.weight = params.weights["contact_schedule"]
-        # self.rewards.rew_contact_schedule.params["threshold"] = params.contact_threshold
-        # self.rewards.rew_contact_schedule.params["sigma"] = params.contact_sigma
+        self.rewards.rew_contact_schedule.weight = params.weights["contact_schedule"]
+        self.rewards.rew_contact_schedule.params["threshold"] = params.contact_threshold
+        self.rewards.rew_contact_schedule.params["sigma"] = params.contact_sigma
         # penalities
         self.rewards.pen_base_height.weight = params.weights["base_height"]
         self.rewards.pen_joint_torq.weight = params.weights["joint_torques"]
         self.rewards.pen_joint_vel.weight = params.weights["joint_vel"]
         self.rewards.pen_joint_pos_limits.weight = params.weights["joint_pos_limits"]
+        self.rewards.pen_foot_slip.weight = params.weights["foot_slip"]
         self.rewards.pen_action_smoothness.weight = params.weights["action_smoothness"]
         self.rewards.pen_ang_vel_xy.weight = params.weights["ang_vel_xy"]
         self.rewards.pen_lin_vel_z.weight = params.weights["lin_vel_z"]

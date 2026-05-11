@@ -99,10 +99,11 @@ def feet_air_time(
     gait_command_name: str | None = None,
     swing_time_scale: float = 0.5,
     min_threshold: float = 0.0,
+    dense: bool = False,
+    contact_force_threshold: float = 1.0,
 ) -> torch.Tensor:
     """Reward longer swing times when tracking non-zero commands."""
     contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
-    first_contact = contact_sensor.compute_first_contact(env.step_dt)[:, sensor_cfg.body_ids]
     last_air_time = contact_sensor.data.last_air_time[:, sensor_cfg.body_ids]
     if gait_command_name is not None:
         gait_cmd = env.command_manager.get_command(gait_command_name)
@@ -111,9 +112,18 @@ def feet_air_time(
         swing_time = (1.0 - duration) / freq
         dyn_threshold = torch.clamp(swing_time_scale * swing_time, min=min_threshold).unsqueeze(1)
     else:
-        dyn_threshold = threshold
+        dyn_threshold = torch.full_like(last_air_time, threshold)
 
-    reward = torch.sum((last_air_time - dyn_threshold) * first_contact, dim=1)
+    if dense:
+        contact_forces = contact_sensor.data.net_forces_w_history[:, 0, sensor_cfg.body_ids, 2]
+        in_air = contact_forces <= contact_force_threshold
+        denom = torch.clamp(dyn_threshold, min=1e-6)
+        air_ratio = torch.clamp(last_air_time / denom, max=1.0)
+        reward = torch.mean(air_ratio * in_air.float(), dim=1)
+    else:
+        first_contact = contact_sensor.compute_first_contact(env.step_dt)[:, sensor_cfg.body_ids]
+        reward = torch.sum((last_air_time - dyn_threshold) * first_contact, dim=1)
+
     reward *= torch.norm(env.command_manager.get_command(command_name)[:, :2], dim=1) > 0.1
     return reward
 
@@ -240,6 +250,25 @@ def no_contact(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg) -> torch.Tens
     contacts = latest_contact_forces > 1.0  # Returns a boolean tensor where True indicates contact
 
     return (torch.sum(contacts.float(), dim=1) == 0).float()
+
+
+def foot_slip_penalty(
+    env: ManagerBasedRLEnv,
+    sensor_cfg: SceneEntityCfg,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    contact_threshold: float = 1.0,
+) -> torch.Tensor:
+    """Penalize horizontal foot slip when in contact."""
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    asset: Articulation = env.scene[asset_cfg.name]
+
+    contact_forces = contact_sensor.data.net_forces_w_history[:, 0, sensor_cfg.body_ids, 2]
+    in_contact = contact_forces > contact_threshold
+
+    foot_vel_xy = asset.data.body_lin_vel_w[:, asset_cfg.body_ids, :2]
+    slip_speed = torch.norm(foot_vel_xy, dim=2)
+
+    return torch.mean(slip_speed * in_contact.float(), dim=1)
 
 
 def stand_still(

@@ -146,16 +146,17 @@ class BDLipEnvCfg(BipedLipEnvCfg):
             "rew_step_tracking": 3.0,
             "rew_heading": 0.5,
             "rew_feet_air_time": 1.0,
-            "contact_schedule": 1.0,
+            "contact_schedule": 0.0, # disable
             # penalities
-            "base_height": 1.0,
+            "base_height": -1.0,
             "joint_torques": -1e-4,
             "joint_vel": -1e-3,
-            "joint_pos_limits": -10,
+            "joint_pos_limits": -1.0,
+            "foot_slip": -0.2,
             "action_smoothness": -1e-3,
             "ang_vel_xy": -1e-2,
             "lin_vel_z": -1e-1,
-            "flat_orientation": -1,
+            "flat_orientation": -1.0,
         }
 
         self.events.add_base_mass.params["asset_cfg"].body_names = "base_link"
@@ -173,12 +174,18 @@ class BDLipEnvCfg(BipedLipEnvCfg):
         # Step command settings (match reference-style explicit step geometry).
         self.commands.lip_step_command.nominal_step_length = 0.02
         self.commands.lip_step_command.nominal_step_width = 0.2
-        self.commands.lip_step_command.step_period_s = 0.24
+        self.commands.lip_step_command.step_period_s = None
         self.commands.lip_step_command.use_cmd_heading = True
         self.commands.lip_step_command.ranges = mdp.LipStepCommandCfg.Ranges(
             step_length=(0.01, 0.05),
             step_width=(0.18, 0.22),
-            step_period_s=(0.2, 0.3),
+        )
+
+        # Drive step period through gait command (T = 0.5 / f).
+        self.commands.gait_command.ranges = mdp.UniformGaitCommandCfg.Ranges(
+            frequencies=(1.0, 2.5),
+            offsets=(0.5, 0.5),
+            durations=(0.5, 0.5),
         )
 
         self.commands.base_height_command.ranges = mdp.BaseHeightCommandCfg.Ranges(
@@ -186,7 +193,7 @@ class BDLipEnvCfg(BipedLipEnvCfg):
         )
 
         self.commands.base_velocity.ranges = mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-0.3, 0.3), 
+            lin_vel_x=(-0.2, 0.5), 
             lin_vel_y=(-0.1, 0.1), 
             ang_vel_z=(-0.75, 0.75), 
             heading=(-math.pi, math.pi)
@@ -211,8 +218,20 @@ class BDLipEnvCfg_Play(BDLipEnvCfg):
         # remove random base mass addition event
         self.events.add_base_mass = None # type: ignore
         self.commands.base_velocity.ranges = mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-0.3, 0.3), 
+            lin_vel_x=(0.3, 0.3), 
             lin_vel_y=(-0.1, 0.1), 
             ang_vel_z=(-0.75, 0.75),
             heading=(-math.pi, math.pi)
+        )
+
+        self.commands.lip_step_command.ranges = mdp.LipStepCommandCfg.Ranges(
+            step_length=(0.05, 0.05),
+            step_width=(0.18, 0.22),
+        )
+
+        # Drive step period through gait command (T = 0.5 / f).
+        self.commands.gait_command.ranges = mdp.UniformGaitCommandCfg.Ranges(
+            frequencies=(1.0, 2.5),
+            offsets=(0.5, 0.5),
+            durations=(0.5, 0.5),
         )
