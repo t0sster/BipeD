@@ -35,9 +35,11 @@ parser.add_argument("--population", type=int, default=16, help="Population size.
 parser.add_argument("--elite", type=int, default=4, help="Elite count per generation.")
 parser.add_argument("--generations", type=int, default=8, help="Number of generations.")
 parser.add_argument("--sigma", type=float, default=0.15, help="Mutation sigma as a fraction of range.")
+parser.add_argument("--sigma_decay", type=float, default=0.9, help="Per-generation sigma decay factor.")
+parser.add_argument("--best_parent_prob", type=float, default=0.7, help="Chance to mutate best candidate.")
 parser.add_argument("--step_size", type=float, default=0.05, help="Discretization step for command params.")
 parser.add_argument("--batch_eval", action="store_true", default=False, help="Evaluate population in parallel.")
-parser.add_argument("--tracking_weight", type=float, default=2.0, help="Tracking error weight.")
+parser.add_argument("--tracking_weight", type=float, default=1.0, help="Tracking error weight.")
 parser.add_argument("--cot_weight", type=float, default=1.0, help="Cost of transport weight.")
 parser.add_argument("--param_sets", type=str, default=None, help="Path to JSON list of parameter sets.")
 parser.add_argument("--output", type=str, default=None, help="Directory to save logs and plots.")
@@ -198,8 +200,8 @@ class CommandApplier:
             term = self._terms.get_term("base_velocity")
             ranges = term.cfg.ranges
             if "lin_vel_x" in params:
-                vx = max(0.0, params["lin_vel_x"])
-                ranges.lin_vel_x = (vx, vx)
+                vx = max(0.05, params["lin_vel_x"])
+                ranges.lin_vel_x = (0.05, vx)
             ranges.lin_vel_y = (0.0, 0.0)
             ranges.ang_vel_z = (0.0, 0.0)
             if hasattr(ranges, "heading"):
@@ -271,12 +273,9 @@ class GaitEvaluator:
 
         cot = energy / (mass * distance)
         tracking = tracking_err / max(steps, 1)
-        score = self._cot_weight * cot + self._tracking_weight * tracking
-
         return {
             "cost_of_transport": cot,
             "tracking_error": tracking,
-            "score": score,
         }
 
     def evaluate_batch(self, steps, count):
@@ -322,27 +321,40 @@ class GaitEvaluator:
 
         cot = energy / (mass * distance)
         tracking = tracking_err / max(steps, 1)
-        score = self._cot_weight * cot + self._tracking_weight * tracking
-
         results = []
         for idx in range(count):
             results.append(
                 {
                     "cost_of_transport": float(cot[idx].item()),
                     "tracking_error": float(tracking[idx].item()),
-                    "score": float(score[idx].item()),
                 }
             )
         return results
 
 
 class EvolutionaryOptimizer:
-    def __init__(self, space, rng, population, elite, sigma, log_every=1):
+    def __init__(
+        self,
+        space,
+        rng,
+        population,
+        elite,
+        sigma,
+        sigma_decay,
+        best_parent_prob,
+        cot_weight,
+        tracking_weight,
+        log_every=1,
+    ):
         self._space = space
         self._rng = rng
         self._population = population
         self._elite = elite
         self._sigma = sigma
+        self._sigma_decay = max(0.0, min(1.0, sigma_decay))
+        self._best_parent_prob = max(0.0, min(1.0, best_parent_prob))
+        self._cot_weight = cot_weight
+        self._tracking_weight = tracking_weight
         self._log_every = max(1, log_every)
 
     def optimize(self, generations, evaluate_fn, batch_eval=False):
@@ -365,7 +377,8 @@ class EvolutionaryOptimizer:
                     scored.append(record)
                     history.append(record)
 
-            scored.sort(key=lambda item: item["metrics"]["score"])
+            _normalize_scores(scored, self._cot_weight, self._tracking_weight)
+            scored.sort(key=lambda item: item["metrics"]["score"], reverse=True)
             if gen_idx % self._log_every == 0:
                 best = scored[0]
                 avg_score = sum(item["metrics"]["score"] for item in scored) / max(1, len(scored))
@@ -383,20 +396,24 @@ class EvolutionaryOptimizer:
 
             elites = scored[: self._elite]
             candidates = [entry["params"] for entry in elites]
+            current_sigma = self._sigma * (self._sigma_decay ** gen_idx)
 
             while len(candidates) < self._population:
-                parent = self._rng.choice(elites)["params"]
-                child = self._mutate(parent)
+                if self._rng.random() < self._best_parent_prob:
+                    parent = elites[0]["params"]
+                else:
+                    parent = self._rng.choice(elites)["params"]
+                child = self._mutate(parent, current_sigma)
                 candidates.append(child)
 
-        best = min(results, key=lambda item: item["metrics"]["score"])
+        best = max(results, key=lambda item: item["metrics"]["score"])
         return best, results, history
 
-    def _mutate(self, parent):
+    def _mutate(self, parent, sigma):
         child = {}
         for (name, _), (low, high) in zip(self._space._params, self._space._bounds, strict=True):
             span = high - low
-            value = parent[name] + self._rng.gauss(0.0, self._sigma * span)
+            value = parent[name] + self._rng.gauss(0.0, sigma * span)
             value = max(low, min(high, value))
             child[name] = _quantize(value, low, high, self._space._step_size)
         return child
@@ -408,6 +425,23 @@ def _load_param_sets(path):
     if not isinstance(data, list):
         raise ValueError("param_sets must be a list of dictionaries")
     return data
+
+
+def _normalize_scores(items, cot_weight, tracking_weight, eps=1e-6):
+    if not items:
+        return
+    cot_mean = sum(item["metrics"]["cost_of_transport"] for item in items) / len(items)
+    tracking_mean = sum(item["metrics"]["tracking_error"] for item in items) / len(items)
+    cot_mean = max(cot_mean, eps)
+    tracking_mean = max(tracking_mean, eps)
+
+    for item in items:
+        cot_norm = item["metrics"]["cost_of_transport"] / cot_mean
+        tracking_norm = item["metrics"]["tracking_error"] / tracking_mean
+        objective = cot_weight * cot_norm + tracking_weight * tracking_norm
+        item["metrics"]["cot_norm"] = cot_norm
+        item["metrics"]["tracking_norm"] = tracking_norm
+        item["metrics"]["score"] = 1.0 / (eps + objective)
 
 
 def _quantize(value, low, high, step):
@@ -438,24 +472,49 @@ class ResultLogger:
             writer.writeheader()
             writer.writerows(rows)
 
-    def plot_metrics(self, filename, history):
+    def plot_metrics(self, history):
         if plt is None or not history:
             return
         steps = list(range(len(history)))
-        scores = [item["metrics"]["score"] for item in history]
-        cot = [item["metrics"]["cost_of_transport"] for item in history]
-        tracking = [item["metrics"]["tracking_error"] for item in history]
+        metrics = {
+            "score": [item["metrics"]["score"] for item in history],
+            "cost_of_transport": [item["metrics"]["cost_of_transport"] for item in history],
+            "tracking_error": [item["metrics"]["tracking_error"] for item in history],
+        }
 
-        plt.figure(figsize=(10, 6))
-        plt.plot(steps, scores, label="score")
-        plt.plot(steps, cot, label="cot")
-        plt.plot(steps, tracking, label="tracking")
-        plt.xlabel("evaluation")
-        plt.ylabel("metric")
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig(self._log_dir / filename)
-        plt.close()
+        for name, series in metrics.items():
+            plt.figure(figsize=(10, 6))
+            plt.plot(steps, series, label=name)
+            plt.xlabel("evaluation")
+            plt.ylabel(name)
+            plt.legend()
+            plt.tight_layout()
+            plt.savefig(self._log_dir / f"{name}.png")
+            plt.close()
+
+        best_by_gen = {}
+        for item in history:
+            gen = item.get("generation", 0)
+            best = best_by_gen.get(gen)
+            if best is None or item["metrics"]["score"] > best["metrics"]["score"]:
+                best_by_gen[gen] = item
+
+        gens = sorted(best_by_gen.keys())
+        best_metrics = {
+            "score": [best_by_gen[g]["metrics"]["score"] for g in gens],
+            "cost_of_transport": [best_by_gen[g]["metrics"]["cost_of_transport"] for g in gens],
+            "tracking_error": [best_by_gen[g]["metrics"]["tracking_error"] for g in gens],
+        }
+
+        for name, series in best_metrics.items():
+            plt.figure(figsize=(10, 6))
+            plt.plot(gens, series, label=f"best_{name}")
+            plt.xlabel("generation")
+            plt.ylabel(f"best_{name}")
+            plt.legend()
+            plt.tight_layout()
+            plt.savefig(self._log_dir / f"best_{name}.png")
+            plt.close()
 
 
 def main():
@@ -558,9 +617,20 @@ def main():
             record = {"params": params, "metrics": metrics, "generation": 0, "candidate": len(history)}
             results.append(record)
             history.append(record)
-        best = min(results, key=lambda item: item["metrics"]["score"]) if results else None
+        _normalize_scores(results, args_cli.cot_weight, args_cli.tracking_weight)
+        best = max(results, key=lambda item: item["metrics"]["score"]) if results else None
     else:
-        optimizer = EvolutionaryOptimizer(space, rng, args_cli.population, args_cli.elite, args_cli.sigma)
+        optimizer = EvolutionaryOptimizer(
+            space,
+            rng,
+            args_cli.population,
+            args_cli.elite,
+            args_cli.sigma,
+            args_cli.sigma_decay,
+            args_cli.best_parent_prob,
+            args_cli.cot_weight,
+            args_cli.tracking_weight,
+        )
 
         if args_cli.batch_eval:
             def _evaluate_batch(candidates):
@@ -591,7 +661,7 @@ def main():
         row.update(item["metrics"])
         flat_rows.append(row)
     logger.write_csv("history.csv", flat_rows)
-    logger.plot_metrics("metrics.png", history)
+    logger.plot_metrics(history)
 
     if best is not None:
         print("[INFO] Best candidate:")
