@@ -159,11 +159,13 @@ class ObservationsLipCfg:
 
         commands = ObsTerm(
             func=mdp.generated_commands, 
-            params={"command_name": "base_velocity"})
+            params={"command_name": "base_velocity"}
+        )
 
         base_height_command = ObsTerm(
             func=mdp.generated_commands,
-            params={"command_name": "base_height_command"})
+            params={"command_name": "base_height_command"}
+        )
         
         gait_phase = ObsTerm(func=mdp.get_gait_phase)
 
@@ -176,8 +178,8 @@ class ObservationsLipCfg:
 
         # Policy observation
         
-        base_ang_vel = ObsTerm(func=mdp.base_ang_vel, noise=UniformNoise(operation="add", n_min=-0.1, n_max=0.1))
-        proj_gravity = ObsTerm(func=mdp.projected_gravity, noise=UniformNoise(operation="add", n_min=-0.05, n_max=0.05))
+        base_ang_vel = ObsTerm(func=mdp.base_ang_vel)
+        proj_gravity = ObsTerm(func=mdp.projected_gravity)
         
         foot_states_right = ObsTerm(func=mdp.foot_states_right)
         foot_states_left = ObsTerm(func=mdp.foot_states_left)
@@ -185,15 +187,20 @@ class ObservationsLipCfg:
         step_command_right = ObsTerm(func=mdp.step_command_right)
         step_command_left = ObsTerm(func=mdp.step_command_left)
 
-        commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
+        commands = ObsTerm(
+            func=mdp.generated_commands, 
+            params={"command_name": "base_velocity"}
+        )
+        
         base_height_command = ObsTerm(
             func=mdp.generated_commands,
-            params={"command_name": "base_height_command"},
+            params={"command_name": "base_height_command"}
         )
+        
         gait_phase = ObsTerm(func=mdp.get_gait_phase)
 
-        joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=UniformNoise(operation="add", n_min=-0.01, n_max=0.01))
-        joint_vel = ObsTerm(func=mdp.joint_vel, noise=UniformNoise(operation="add", n_min=-0.1, n_max=0.1))
+        joint_pos = ObsTerm(func=mdp.joint_pos_rel)
+        joint_vel = ObsTerm(func=mdp.joint_vel)
 
         # Privileged observation
 
@@ -281,6 +288,8 @@ class LipRewardParamsCfg:
     contact_sigma: float = 0.25
     feet_air_time_scale: float = 0.4
     feet_air_time_min_threshold: float = 0.1
+    stand_still_lin_threshold: float = 0.1
+    stand_still_ang_threshold: float = 0.1
     weights: dict[str, float] = {
         # rewards
         "rew_lin_vel_xy": 4.0,
@@ -293,7 +302,8 @@ class LipRewardParamsCfg:
         "base_height": -1.0,
         "joint_torques": -1e-4,
         "joint_vel": -1e-3,
-        "joint_pos_limits": -10,
+        "joint_pos_limits": -1.0,
+        "stand_still": -0.05,
         "foot_slip": -0.2,
         "action_smoothness": -1e-3,
         "ang_vel_xy": -1e-2,
@@ -374,7 +384,15 @@ class RewardsLipCfg:
     )
     pen_joint_torq = RewTerm(func=mdp.joint_torques_l2, weight=-1e-4)
     pen_joint_vel = RewTerm(func=mdp.joint_vel_l2, weight=-1e-3)
-    pen_joint_pos_limits = RewTerm(func=mdp.joint_pos_limits, weight=-10)
+    pen_joint_pos_limits = RewTerm(func=mdp.joint_pos_limits, weight=-1.0)
+    pen_stand_still = RewTerm(
+        func=mdp.stand_still,
+        weight=-0.05,
+        params={
+            "lin_threshold": 0.1,
+            "ang_threshold": 0.1,
+        },
+    )
     pen_foot_slip = RewTerm(
         func=mdp.foot_slip_penalty,
         weight=-0.2,
@@ -435,7 +453,7 @@ class BipedLipEnvCfg(ManagerBasedRLEnvCfg):
         self.scene: BDLipSceneCfg = BDLipSceneCfg(num_envs=2048, env_spacing=2.5)
         # general settings
         self.decimation = 4
-        self.episode_length_s = 20.0
+        self.episode_length_s = 25.0
         # viewer settings
         self.viewer.eye = (10.0, 10.0, 5.0)
         self.viewer.lookat = (-5.0, 0.0, 0.0)
@@ -466,6 +484,9 @@ class BipedLipEnvCfg(ManagerBasedRLEnvCfg):
         self.rewards.pen_joint_torq.weight = params.weights["joint_torques"]
         self.rewards.pen_joint_vel.weight = params.weights["joint_vel"]
         self.rewards.pen_joint_pos_limits.weight = params.weights["joint_pos_limits"]
+        self.rewards.pen_stand_still.weight = params.weights["stand_still"]
+        self.rewards.pen_stand_still.params["lin_threshold"] = params.stand_still_lin_threshold
+        self.rewards.pen_stand_still.params["ang_threshold"] = params.stand_still_ang_threshold
         self.rewards.pen_foot_slip.weight = params.weights["foot_slip"]
         self.rewards.pen_action_smoothness.weight = params.weights["action_smoothness"]
         self.rewards.pen_ang_vel_xy.weight = params.weights["ang_vel_xy"]

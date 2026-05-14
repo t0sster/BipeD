@@ -121,6 +121,8 @@ class BDLipEnvCfg(BipedLipEnvCfg):
         super().__post_init__()
 
         self.scene.robot = BD_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot") # type: ignore
+        
+        self.scene.robot.init_state.pos = (0.0, 0.0, 0.36)
         self.scene.robot.init_state.joint_pos = {
             # Left
             "J_L0":   0.0,
@@ -135,23 +137,21 @@ class BDLipEnvCfg(BipedLipEnvCfg):
             "J_R3":  1.12,
             "J_R4_ankle": 0.57
         }
-        
-        self.episode_length_s = 20.0
 
-        self.reward_params.base_height_target = 0.30
         self.reward_params.weights = {
             # rewards
             "rew_lin_vel_xy": 4.0,
             "rew_ang_vel_z": 2.0,
             "rew_step_tracking": 3.0,
             "rew_heading": 0.5,
-            "rew_feet_air_time": 1.0,
-            "contact_schedule": 0.0, # disable
+            "rew_feet_air_time": 2.0,
+            "contact_schedule": 0.0, # disable it (=0.0) if use only rew_feet_air_time
             # penalities
             "base_height": -1.0,
             "joint_torques": -1e-4,
             "joint_vel": -1e-3,
             "joint_pos_limits": -1.0,
+            "stand_still": -0.2,
             "foot_slip": -0.2,
             "action_smoothness": -1e-3,
             "ang_vel_xy": -1e-2,
@@ -172,12 +172,12 @@ class BDLipEnvCfg(BipedLipEnvCfg):
         self.terminations.max_velocity.params["max_velocity"] = 3.0
 
         # Step command settings (match reference-style explicit step geometry).
-        self.commands.lip_step_command.nominal_step_length = 0.02
+        self.commands.lip_step_command.nominal_step_length = None
         self.commands.lip_step_command.nominal_step_width = 0.2
         self.commands.lip_step_command.step_period_s = None
         self.commands.lip_step_command.use_cmd_heading = True
         self.commands.lip_step_command.ranges = mdp.LipStepCommandCfg.Ranges(
-            step_length=(0.01, 0.05),
+            step_length=(0.05, 0.15),
             step_width=(0.18, 0.22),
         )
 
@@ -188,19 +188,25 @@ class BDLipEnvCfg(BipedLipEnvCfg):
             durations=(0.5, 0.5),
         )
 
+        self.reward_params.base_height_target = 0.28 # disabel if not used below
         self.commands.base_height_command.ranges = mdp.BaseHeightCommandCfg.Ranges(
-            height=(self.reward_params.base_height_target, self.reward_params.base_height_target)
+            # height=(self.reward_params.base_height_target, self.reward_params.base_height_target)
+            height=(0.26, 0.32)
         )
 
         self.commands.base_velocity.ranges = mdp.UniformVelocityCommandCfg.Ranges(
             lin_vel_x=(-0.2, 0.5), 
-            lin_vel_y=(-0.1, 0.1), 
+            lin_vel_y=(-0.2, 0.2), 
             ang_vel_z=(-0.75, 0.75), 
             heading=(-math.pi, math.pi)
         )
 
         self.reward_params.feet_air_time_scale = 0.4
-        self.reward_params.feet_air_time_min_threshold = 0.1
+        self.reward_params.feet_air_time_min_threshold = 0.05
+        self.reward_params.stand_still_ang_threshold = 0.05
+        self.reward_params.stand_still_lin_threshold = 0.05
+
+        self.episode_length_s = 25.0
 
 @configclass
 class BDLipEnvCfg_Play(BDLipEnvCfg):
@@ -218,14 +224,14 @@ class BDLipEnvCfg_Play(BDLipEnvCfg):
         # remove random base mass addition event
         self.events.add_base_mass = None # type: ignore
         self.commands.base_velocity.ranges = mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(0.3, 0.3), 
+            lin_vel_x=(-0.1, 0.3), 
             lin_vel_y=(-0.1, 0.1), 
             ang_vel_z=(-0.75, 0.75),
             heading=(-math.pi, math.pi)
         )
 
         self.commands.lip_step_command.ranges = mdp.LipStepCommandCfg.Ranges(
-            step_length=(0.05, 0.05),
+            step_length=(0.01, 0.05),
             step_width=(0.18, 0.22),
         )
 
