@@ -296,8 +296,8 @@ class LipRewardParamsCfg:
         "rew_ang_vel_z": 2.0,
         "rew_step_tracking": 3.0,
         "rew_heading": 0.5,
-        "rew_feet_air_time": 1.0,
-        "contact_schedule": 0.0,
+        "rew_feet_air_time": 0.5,
+        "contact_schedule": 2.0,
         # penalities
         "base_height": -1.0,
         "joint_torques": -1e-4,

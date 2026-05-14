@@ -144,8 +144,8 @@ class BDLipEnvCfg(BipedLipEnvCfg):
             "rew_ang_vel_z": 2.0,
             "rew_step_tracking": 3.0,
             "rew_heading": 0.5,
-            "rew_feet_air_time": 2.0,
-            "contact_schedule": 0.0, # disable it (=0.0) if use only rew_feet_air_time
+            "rew_feet_air_time": 0.5,
+            "contact_schedule": 2.0, # disable it (=0.0) if use only rew_feet_air_time
             # penalities
             "base_height": -1.0,
             "joint_torques": -1e-4,
@@ -224,9 +224,9 @@ class BDLipEnvCfg_Play(BDLipEnvCfg):
         # remove random base mass addition event
         self.events.add_base_mass = None # type: ignore
         self.commands.base_velocity.ranges = mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-0.1, 0.3), 
-            lin_vel_y=(-0.1, 0.1), 
-            ang_vel_z=(-0.75, 0.75),
+            lin_vel_x=(0.0, 0.5), 
+            lin_vel_y=(0.0, 0.0), 
+            ang_vel_z=(0.0, 0.0),
             heading=(-math.pi, math.pi)
         )
 
