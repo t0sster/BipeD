@@ -278,8 +278,8 @@ class EventsLipCfg:
 class LipRewardParamsCfg:
     """Reward parameters for the LIP environment."""
 
-    rew_shaping: float = 0.25
-    base_height_target: float = 0.30
+    rew_shaping: float = 0.1
+    base_height_target: float = 0.28
     
     step_position_sigma: float = 0.05
     step_yaw_sigma: float = 0.25
@@ -290,6 +290,7 @@ class LipRewardParamsCfg:
     feet_air_time_min_threshold: float = 0.1
     stand_still_lin_threshold: float = 0.1
     stand_still_ang_threshold: float = 0.1
+
     weights: dict[str, float] = {
         # rewards
         "rew_lin_vel_xy": 4.0,
@@ -304,6 +305,7 @@ class LipRewardParamsCfg:
         "joint_vel": -1e-3,
         "joint_pos_limits": -1.0,
         "stand_still": -0.05,
+        "no_contact": -0.2,
         "foot_slip": -0.2,
         "action_smoothness": -1e-3,
         "ang_vel_xy": -1e-2,
@@ -360,8 +362,9 @@ class RewardsLipCfg:
             "gait_command_name": "gait_command",
             "swing_time_scale": 0.5,
             "min_threshold": 0.0,
-            "dense": True,
+            "dense": False,
             "contact_force_threshold": 1.0,
+            "single_support_only": True,
         },
     )
 
@@ -393,6 +396,13 @@ class RewardsLipCfg:
             "ang_threshold": 0.1,
         },
     )
+    pen_no_contact = RewTerm(
+        func=mdp.no_contact,
+        weight=-0.2,
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["R4_Link_ankle", "L4_Link_ankle"]),
+        },
+    )
     pen_foot_slip = RewTerm(
         func=mdp.foot_slip_penalty,
         weight=-0.2,
@@ -406,6 +416,51 @@ class RewardsLipCfg:
     pen_ang_vel_xy = RewTerm(func=mdp.ang_vel_xy_l2, weight=-1e-2)
     pen_lin_vel_z = RewTerm(func=mdp.lin_vel_z_l2, weight=-1e-1)
     pen_flat_orientation = RewTerm(func=mdp.flat_orientation_l2, weight=-1)
+
+
+    def apply(self, params: "LipRewardParamsCfg") -> None:
+        weight_map = {
+            "rew_lin_vel_xy": "rew_lin_vel_xy",
+            "rew_ang_vel_z": "rew_ang_vel_z",
+            "rew_step_tracking": "rew_step_tracking",
+            "rew_heading": "rew_heading",
+            "rew_feet_air_time": "rew_feet_air_time",
+            "contact_schedule": "rew_contact_schedule",
+            "base_height": "pen_base_height",
+            "joint_torques": "pen_joint_torq",
+            "joint_vel": "pen_joint_vel",
+            "joint_pos_limits": "pen_joint_pos_limits",
+            "stand_still": "pen_stand_still",
+            "no_contact": "pen_no_contact",
+            "foot_slip": "pen_foot_slip",
+            "action_smoothness": "pen_action_smoothness",
+            "ang_vel_xy": "pen_ang_vel_xy",
+            "lin_vel_z": "pen_lin_vel_z",
+            "flat_orientation": "pen_flat_orientation",
+        }
+
+        for key, term_name in weight_map.items():
+            getattr(self, term_name).weight = params.weights[key]
+
+        param_map = {
+            ("rew_lin_vel_xy", "std"): ("rew_shaping", lambda v: math.sqrt(v)),
+            ("rew_ang_vel_z", "std"): ("rew_shaping", lambda v: math.sqrt(v)),
+            ("rew_step_tracking", "position_sigma"): ("step_position_sigma", None),
+            ("rew_step_tracking", "yaw_sigma"): ("step_yaw_sigma", None),
+            ("rew_heading", "heading_sigma"): ("heading_sigma", None),
+            ("rew_feet_air_time", "swing_time_scale"): ("feet_air_time_scale", None),
+            ("rew_feet_air_time", "min_threshold"): ("feet_air_time_min_threshold", None),
+            ("rew_contact_schedule", "threshold"): ("contact_threshold", None),
+            ("rew_contact_schedule", "sigma"): ("contact_sigma", None),
+            ("pen_stand_still", "lin_threshold"): ("stand_still_lin_threshold", None),
+            ("pen_stand_still", "ang_threshold"): ("stand_still_ang_threshold", None),
+        }
+
+        for (term_name, param_key), (src_attr, transform) in param_map.items():
+            value = getattr(params, src_attr)
+            if transform is not None:
+                value = transform(value)
+            getattr(self, term_name).params[param_key] = value
 
 
 @configclass
@@ -462,36 +517,7 @@ class BipedLipEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.render_interval = 2 * self.decimation
         self.seed = 42
 
-        params = self.reward_params
-        # rewards
-        self.rewards.rew_lin_vel_xy.weight = params.weights["rew_lin_vel_xy"]
-        self.rewards.rew_lin_vel_xy.params["std"] = math.sqrt(params.rew_shaping)
-        self.rewards.rew_ang_vel_z.weight = params.weights["rew_ang_vel_z"]
-        self.rewards.rew_ang_vel_z.params["std"] = math.sqrt(params.rew_shaping)
-        self.rewards.rew_step_tracking.weight = params.weights["rew_step_tracking"]
-        self.rewards.rew_step_tracking.params["position_sigma"] = params.step_position_sigma
-        self.rewards.rew_step_tracking.params["yaw_sigma"] = params.step_yaw_sigma
-        self.rewards.rew_heading.weight = params.weights["rew_heading"]
-        self.rewards.rew_heading.params["heading_sigma"] = params.heading_sigma
-        self.rewards.rew_feet_air_time.weight = params.weights["rew_feet_air_time"]
-        self.rewards.rew_feet_air_time.params["swing_time_scale"] = params.feet_air_time_scale
-        self.rewards.rew_feet_air_time.params["min_threshold"] = params.feet_air_time_min_threshold
-        self.rewards.rew_contact_schedule.weight = params.weights["contact_schedule"]
-        self.rewards.rew_contact_schedule.params["threshold"] = params.contact_threshold
-        self.rewards.rew_contact_schedule.params["sigma"] = params.contact_sigma
-        # penalities
-        self.rewards.pen_base_height.weight = params.weights["base_height"]
-        self.rewards.pen_joint_torq.weight = params.weights["joint_torques"]
-        self.rewards.pen_joint_vel.weight = params.weights["joint_vel"]
-        self.rewards.pen_joint_pos_limits.weight = params.weights["joint_pos_limits"]
-        self.rewards.pen_stand_still.weight = params.weights["stand_still"]
-        self.rewards.pen_stand_still.params["lin_threshold"] = params.stand_still_lin_threshold
-        self.rewards.pen_stand_still.params["ang_threshold"] = params.stand_still_ang_threshold
-        self.rewards.pen_foot_slip.weight = params.weights["foot_slip"]
-        self.rewards.pen_action_smoothness.weight = params.weights["action_smoothness"]
-        self.rewards.pen_ang_vel_xy.weight = params.weights["ang_vel_xy"]
-        self.rewards.pen_lin_vel_z.weight = params.weights["lin_vel_z"]
-        self.rewards.pen_flat_orientation.weight = params.weights["flat_orientation"]
+        self.rewards.apply(self.reward_params)
 
         if self.scene.contact_forces is not None:
             self.scene.contact_forces.update_period = self.sim.dt

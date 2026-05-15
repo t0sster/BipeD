@@ -101,6 +101,7 @@ def feet_air_time(
     min_threshold: float = 0.0,
     dense: bool = False,
     contact_force_threshold: float = 1.0,
+    single_support_only: bool = False,
 ) -> torch.Tensor:
     """Reward longer swing times when tracking non-zero commands."""
     contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
@@ -117,9 +118,13 @@ def feet_air_time(
     if dense:
         contact_forces = contact_sensor.data.net_forces_w_history[:, 0, sensor_cfg.body_ids, 2]
         in_air = contact_forces <= contact_force_threshold
+        if single_support_only:
+            single_support = in_air.sum(dim=1) == 1
         denom = torch.clamp(dyn_threshold, min=1e-6)
         air_ratio = torch.clamp(last_air_time / denom, max=1.0)
         reward = torch.mean(air_ratio * in_air.float(), dim=1)
+        if single_support_only:
+            reward = reward * single_support.float()
     else:
         first_contact = contact_sensor.compute_first_contact(env.step_dt)[:, sensor_cfg.body_ids]
         reward = torch.sum((last_air_time - dyn_threshold) * first_contact, dim=1)

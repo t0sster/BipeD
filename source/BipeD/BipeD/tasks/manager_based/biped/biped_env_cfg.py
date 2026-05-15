@@ -144,14 +144,15 @@ class BDLipEnvCfg(BipedLipEnvCfg):
             "rew_ang_vel_z": 2.0,
             "rew_step_tracking": 3.0,
             "rew_heading": 0.5,
-            "rew_feet_air_time": 2.0,
-            "contact_schedule": 0.0, # disable it (=0.0) if use only rew_feet_air_time
+            "rew_feet_air_time": 0.5,
+            "contact_schedule": 2.0,
             # penalities
             "base_height": -1.0,
             "joint_torques": -1e-4,
             "joint_vel": -1e-3,
             "joint_pos_limits": -1.0,
-            "stand_still": -0.2,
+            "stand_still": -1.0,
+            "no_contact": -0.2,
             "foot_slip": -0.2,
             "action_smoothness": -1e-3,
             "ang_vel_xy": -1e-2,
@@ -177,7 +178,7 @@ class BDLipEnvCfg(BipedLipEnvCfg):
         self.commands.lip_step_command.step_period_s = None
         self.commands.lip_step_command.use_cmd_heading = True
         self.commands.lip_step_command.ranges = mdp.LipStepCommandCfg.Ranges(
-            step_length=(0.05, 0.15),
+            step_length=(0.01, 0.15),
             step_width=(0.18, 0.22),
         )
 
@@ -205,6 +206,8 @@ class BDLipEnvCfg(BipedLipEnvCfg):
         self.reward_params.feet_air_time_min_threshold = 0.05
         self.reward_params.stand_still_ang_threshold = 0.05
         self.reward_params.stand_still_lin_threshold = 0.05
+
+        self.rewards.apply(self.reward_params)
 
         self.episode_length_s = 25.0
 
