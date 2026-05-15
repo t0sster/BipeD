@@ -298,7 +298,7 @@ class LipRewardParamsCfg:
         "rew_step_tracking": 3.0,
         "rew_heading": 0.5,
         "rew_feet_air_time": 1.0,
-        "contact_schedule": 0.0,
+        "contact_schedule": 1.0,
         # penalities
         "base_height": -1.0,
         "joint_torques": -1e-4,
@@ -337,8 +337,8 @@ class RewardsLipCfg:
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=["R4_Link_ankle", "L4_Link_ankle"]),
             "command_name": "lip_step_command",
-            "position_sigma": 0.01,
-            "yaw_sigma": 0.05,
+            "position_sigma": 0.05,
+            "yaw_sigma": 0.25,
         },
     )
 
@@ -364,7 +364,7 @@ class RewardsLipCfg:
             "min_threshold": 0.0,
             "dense": False,
             "contact_force_threshold": 1.0,
-            "single_support_only": True,
+            "single_support_only": False,
         },
     )
 
