@@ -68,6 +68,7 @@ class LipStepCommandCfg(CommandTermCfg):
     # Frame handling.
     use_base_frame: bool = True
     lock_target_on_swing: bool = True
+    use_mid_stance: bool = False
 
     ranges: Ranges | None = None
     """Optional ranges for step parameters."""

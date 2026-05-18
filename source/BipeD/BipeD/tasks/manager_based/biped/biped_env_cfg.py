@@ -182,6 +182,8 @@ class BDLipEnvCfg(BipedLipEnvCfg):
             step_width=(0.24, 0.24),
         )
 
+        self.commands.lip_step_command.use_mid_stance = True
+
         # Drive step period through gait command (T = 0.5 / f).
         self.commands.gait_command.ranges = mdp.UniformGaitCommandCfg.Ranges(
             frequencies=(1.0, 2.0),

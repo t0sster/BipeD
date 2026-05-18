@@ -169,6 +169,7 @@ class LipStepCommand(CommandTerm):
                 dstep_width,
                 dstep_length,
                 swing_left,
+                use_mid_stance=self.cfg.use_mid_stance,
             )
 
             target_vec_b = torch.zeros_like(target_b)
@@ -188,6 +189,7 @@ class LipStepCommand(CommandTerm):
                 dstep_width,
                 dstep_length,
                 swing_left,
+                use_mid_stance=self.cfg.use_mid_stance,
             )
 
         right_target = torch.zeros(self.num_envs, 3, device=self.device)
