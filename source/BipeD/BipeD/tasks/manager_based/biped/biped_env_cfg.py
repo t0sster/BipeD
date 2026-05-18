@@ -144,7 +144,7 @@ class BDLipEnvCfg(BipedLipEnvCfg):
             "rew_ang_vel_z": 2.0,
             "rew_step_tracking": 3.0,
             "rew_heading": 0.5,
-            "rew_feet_air_time": 0.5,
+            "rew_feet_air_time": 0.0,
             "contact_schedule": 2.0,
             # penalities
             "base_height": -1.0,
@@ -234,7 +234,7 @@ class BDLipEnvCfg_Play(BDLipEnvCfg):
         )
 
         self.commands.lip_step_command.ranges = mdp.LipStepCommandCfg.Ranges(
-            step_length=(0.01, 0.05),
+            step_length=(0.01, 0.15),
             step_width=(0.18, 0.22),
         )
 

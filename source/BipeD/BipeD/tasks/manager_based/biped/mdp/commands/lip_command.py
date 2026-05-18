@@ -102,9 +102,16 @@ class LipStepCommand(CommandTerm):
         swing_right = ~right_contact
         swing_left = ~left_contact
 
+        ###
         tie_break = both_contact | both_swing
         swing_right[tie_break] = right_phase[tie_break] > left_phase[tie_break]
         swing_left[tie_break] = ~swing_right[tie_break]
+
+        # swing_right[both_contact] = True
+        # swing_left[both_contact] = False
+        # swing_right[both_swing] = True
+        # swing_left[both_swing] = False
+        ###
 
         cmd = env.command_manager.get_command("base_velocity") # type: ignore
         cmd_vel = cmd[:, :2]
