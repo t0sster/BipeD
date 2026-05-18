@@ -278,10 +278,10 @@ class EventsLipCfg:
 class LipRewardParamsCfg:
     """Reward parameters for the LIP environment."""
 
-    rew_shaping: float = 0.1
-    base_height_target: float = 0.28
+    rew_shaping: float = 0.25
+    base_height_target: float = 0.25
     
-    step_position_sigma: float = 0.05
+    step_position_sigma: float = 0.25
     step_yaw_sigma: float = 0.25
     heading_sigma: float = 0.25
     contact_threshold: float = 1.0
