@@ -31,6 +31,9 @@ class LipStepCommand(CommandTerm):
 
         self._forward = torch.tensor([1.0, 0.0, 0.0], device=self.device)
 
+        self._swing_state = torch.zeros(self.num_envs, 2, dtype=torch.bool, device=self.device)
+        self._frozen_targets_w = torch.zeros(self.num_envs, 2, 3, device=self.device)
+
         self._use_step_length = cfg.nominal_step_length is not None
         self._use_step_period = cfg.step_period_s is not None
         if cfg.ranges is not None:
@@ -81,8 +84,10 @@ class LipStepCommand(CommandTerm):
         root_vel = asset.data.root_lin_vel_w
         base_quat = asset.data.root_quat_w
 
+        yaw_quat = math_utils.yaw_quat(base_quat)
+
         forward = self._forward.repeat(base_quat.shape[0], 1)
-        forward = math_utils.quat_apply(base_quat, forward)
+        forward = math_utils.quat_apply(yaw_quat, forward)
         base_heading = torch.atan2(forward[:, 1], forward[:, 0]).unsqueeze(1)
 
         foot_pos = asset.data.body_pos_w[:, self._foot_body_ids, :]
@@ -129,10 +134,16 @@ class LipStepCommand(CommandTerm):
         if self.cfg.use_cmd_heading:
             vel_heading = torch.atan2(cmd_vel[:, 1], cmd_vel[:, 0]).unsqueeze(1)
             desired_heading = math_utils.wrap_to_pi(base_heading + vel_heading + cmd_wz * T)
-            heading = torch.where(cmd_speed > self.cfg.heading_speed_eps, desired_heading,
-                                  math_utils.wrap_to_pi(base_heading + cmd_wz * T))
+            heading = torch.where(
+                cmd_speed > self.cfg.heading_speed_eps,
+                desired_heading,
+                math_utils.wrap_to_pi(base_heading + cmd_wz * T),
+            )
+            heading_b = math_utils.wrap_to_pi(vel_heading + cmd_wz * T)
+            heading_b = torch.where(cmd_speed > self.cfg.heading_speed_eps, heading_b, cmd_wz * T)
         else:
             heading = base_heading
+            heading_b = torch.zeros_like(base_heading)
 
         dstep_width = self._step_width
         if self._use_step_length:
@@ -140,23 +151,44 @@ class LipStepCommand(CommandTerm):
         else:
             dstep_length = None
 
-        support_pos = torch.where(
-            swing_right.unsqueeze(1),
-            foot_pos[:, 1, :],
-            foot_pos[:, 0, :],
-        )
+        support_pos = torch.where(swing_right.unsqueeze(1), foot_pos[:, 1, :], foot_pos[:, 0, :])
 
-        target = compute_xcom_step_targets(
-            root_pos,
-            root_vel,
-            support_pos,
-            cmd_vel,
-            heading,
-            T,
-            dstep_width,
-            dstep_length,
-            swing_left,
-        )
+        if self.cfg.use_base_frame:
+            root_pos_plan = torch.zeros_like(root_pos)
+            root_pos_plan[:, 2:3] = root_pos[:, 2:3]
+            root_vel_plan = math_utils.quat_apply_inverse(yaw_quat, root_vel)
+            support_pos_plan = math_utils.quat_apply_inverse(yaw_quat, support_pos - root_pos)
+
+            target_b = compute_xcom_step_targets(
+                root_pos_plan,
+                root_vel_plan,
+                support_pos_plan,
+                cmd_vel,
+                heading_b,
+                T,
+                dstep_width,
+                dstep_length,
+                swing_left,
+            )
+
+            target_vec_b = torch.zeros_like(target_b)
+            target_vec_b[:, :2] = target_b[:, :2]
+            target_xy_w = root_pos[:, :2] + math_utils.quat_apply(yaw_quat, target_vec_b)[:, :2]
+            target = torch.zeros_like(target_b)
+            target[:, :2] = target_xy_w
+            target[:, 2] = heading.squeeze(1)
+        else:
+            target = compute_xcom_step_targets(
+                root_pos,
+                root_vel,
+                support_pos,
+                cmd_vel,
+                heading,
+                T,
+                dstep_width,
+                dstep_length,
+                swing_left,
+            )
 
         right_target = torch.zeros(self.num_envs, 3, device=self.device)
         left_target = torch.zeros(self.num_envs, 3, device=self.device)
@@ -167,15 +199,35 @@ class LipStepCommand(CommandTerm):
         right_yaw = torch.atan2(right_forward[:, 1], right_forward[:, 0])
         left_yaw = torch.atan2(left_forward[:, 1], left_forward[:, 0])
 
-        right_target[:, :2] = torch.where(
-            swing_right.unsqueeze(1), target[:, :2], foot_pos[:, 0, :2]
-        )
-        left_target[:, :2] = torch.where(
-            swing_left.unsqueeze(1), target[:, :2], foot_pos[:, 1, :2]
-        )
+        if self.cfg.lock_target_on_swing:
+            swing_now = torch.stack((swing_right, swing_left), dim=1)
+            swing_start = swing_now & ~self._swing_state
+            self._swing_state = swing_now
 
-        right_target[:, 2] = torch.where(swing_right, target[:, 2], right_yaw)
-        left_target[:, 2] = torch.where(swing_left, target[:, 2], left_yaw)
+            if swing_start[:, 0].any():
+                right_ids = swing_start[:, 0]
+                self._frozen_targets_w[right_ids, 0, :2] = target[right_ids, :2]
+                self._frozen_targets_w[right_ids, 0, 2] = target[right_ids, 2]
+            if swing_start[:, 1].any():
+                left_ids = swing_start[:, 1]
+                self._frozen_targets_w[left_ids, 1, :2] = target[left_ids, :2]
+                self._frozen_targets_w[left_ids, 1, 2] = target[left_ids, 2]
+
+            right_target[:, :2] = torch.where(
+                swing_right.unsqueeze(1), self._frozen_targets_w[:, 0, :2], foot_pos[:, 0, :2]
+            )
+            left_target[:, :2] = torch.where(
+                swing_left.unsqueeze(1), self._frozen_targets_w[:, 1, :2], foot_pos[:, 1, :2]
+            )
+
+            right_target[:, 2] = torch.where(swing_right, self._frozen_targets_w[:, 0, 2], right_yaw)
+            left_target[:, 2] = torch.where(swing_left, self._frozen_targets_w[:, 1, 2], left_yaw)
+        else:
+            right_target[:, :2] = torch.where(swing_right.unsqueeze(1), target[:, :2], foot_pos[:, 0, :2])
+            left_target[:, :2] = torch.where(swing_left.unsqueeze(1), target[:, :2], foot_pos[:, 1, :2])
+
+            right_target[:, 2] = torch.where(swing_right, target[:, 2], right_yaw)
+            left_target[:, 2] = torch.where(swing_left, target[:, 2], left_yaw)
 
         self.step_target_command[:, 0:3] = right_target
         self.step_target_command[:, 3:6] = left_target
