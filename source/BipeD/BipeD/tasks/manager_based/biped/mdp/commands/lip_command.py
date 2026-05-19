@@ -32,6 +32,7 @@ class LipStepCommand(CommandTerm):
         self._forward = torch.tensor([1.0, 0.0, 0.0], device=self.device)
 
         self._swing_state = torch.zeros(self.num_envs, 2, dtype=torch.bool, device=self.device)
+        self._stride_phase = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         self._frozen_targets_w = torch.zeros(self.num_envs, 2, 3, device=self.device)
 
         self._use_step_length = cfg.nominal_step_length is not None
@@ -151,46 +152,36 @@ class LipStepCommand(CommandTerm):
         else:
             dstep_length = None
 
+        step_length = dstep_length
+        if step_length is None:
+            step_length = torch.norm(cmd_vel, dim=1, keepdim=True) * T
+
+        heading_dir = torch.stack((torch.cos(heading.squeeze(1)), torch.sin(heading.squeeze(1))), dim=1)
+
+        root_pos_plan = torch.zeros_like(root_pos)
+        root_pos_plan[:, 2:3] = root_pos[:, 2:3]
+        root_vel_plan = math_utils.quat_apply_inverse(yaw_quat, root_vel)
         support_pos = torch.where(swing_right.unsqueeze(1), foot_pos[:, 1, :], foot_pos[:, 0, :])
+        support_pos_plan = math_utils.quat_apply_inverse(yaw_quat, support_pos - root_pos)
 
-        if self.cfg.use_base_frame:
-            root_pos_plan = torch.zeros_like(root_pos)
-            root_pos_plan[:, 2:3] = root_pos[:, 2:3]
-            root_vel_plan = math_utils.quat_apply_inverse(yaw_quat, root_vel)
-            support_pos_plan = math_utils.quat_apply_inverse(yaw_quat, support_pos - root_pos)
+        target_b = compute_xcom_step_targets(
+            root_pos_plan,
+            root_vel_plan,
+            support_pos_plan,
+            cmd_vel,
+            heading_b,
+            T,
+            dstep_width,
+            dstep_length,
+            swing_left,
+        )
 
-            target_b = compute_xcom_step_targets(
-                root_pos_plan,
-                root_vel_plan,
-                support_pos_plan,
-                cmd_vel,
-                heading_b,
-                T,
-                dstep_width,
-                dstep_length,
-                swing_left,
-                use_mid_stance=self.cfg.use_mid_stance,
-            )
-
-            target_vec_b = torch.zeros_like(target_b)
-            target_vec_b[:, :2] = target_b[:, :2]
-            target_xy_w = root_pos[:, :2] + math_utils.quat_apply(yaw_quat, target_vec_b)[:, :2]
-            target = torch.zeros_like(target_b)
-            target[:, :2] = target_xy_w
-            target[:, 2] = heading.squeeze(1)
-        else:
-            target = compute_xcom_step_targets(
-                root_pos,
-                root_vel,
-                support_pos,
-                cmd_vel,
-                heading,
-                T,
-                dstep_width,
-                dstep_length,
-                swing_left,
-                use_mid_stance=self.cfg.use_mid_stance,
-            )
+        target_vec_b = torch.zeros_like(target_b)
+        target_vec_b[:, :2] = target_b[:, :2]
+        target_xy_w = root_pos[:, :2] + math_utils.quat_apply(yaw_quat, target_vec_b)[:, :2]
+        target = torch.zeros_like(target_b)
+        target[:, :2] = target_xy_w
+        target[:, 2] = heading.squeeze(1)
 
         right_target = torch.zeros(self.num_envs, 3, device=self.device)
         left_target = torch.zeros(self.num_envs, 3, device=self.device)
@@ -201,35 +192,34 @@ class LipStepCommand(CommandTerm):
         right_yaw = torch.atan2(right_forward[:, 1], right_forward[:, 0])
         left_yaw = torch.atan2(left_forward[:, 1], left_forward[:, 0])
 
-        if self.cfg.lock_target_on_swing:
-            swing_now = torch.stack((swing_right, swing_left), dim=1)
-            swing_start = swing_now & ~self._swing_state
-            self._swing_state = swing_now
+        swing_now = torch.stack((swing_right, swing_left), dim=1)
+        swing_start = swing_now & ~self._swing_state
+        self._swing_state = swing_now
 
-            if swing_start[:, 0].any():
-                right_ids = swing_start[:, 0]
-                self._frozen_targets_w[right_ids, 0, :2] = target[right_ids, :2]
-                self._frozen_targets_w[right_ids, 0, 2] = target[right_ids, 2]
-            if swing_start[:, 1].any():
-                left_ids = swing_start[:, 1]
-                self._frozen_targets_w[left_ids, 1, :2] = target[left_ids, :2]
-                self._frozen_targets_w[left_ids, 1, 2] = target[left_ids, 2]
+        stride_offset_w = heading_dir * (step_length * self._stride_phase.unsqueeze(1))
 
-            right_target[:, :2] = torch.where(
-                swing_right.unsqueeze(1), self._frozen_targets_w[:, 0, :2], foot_pos[:, 0, :2]
-            )
-            left_target[:, :2] = torch.where(
-                swing_left.unsqueeze(1), self._frozen_targets_w[:, 1, :2], foot_pos[:, 1, :2]
-            )
+        if swing_start[:, 0].any():
+            right_ids = swing_start[:, 0]
+            self._frozen_targets_w[right_ids, 0, :2] = target[right_ids, :2] + stride_offset_w[right_ids]
+            self._frozen_targets_w[right_ids, 0, 2] = target[right_ids, 2]
+        if swing_start[:, 1].any():
+            left_ids = swing_start[:, 1]
+            self._frozen_targets_w[left_ids, 1, :2] = target[left_ids, :2] + stride_offset_w[left_ids]
+            self._frozen_targets_w[left_ids, 1, 2] = target[left_ids, 2]
 
-            right_target[:, 2] = torch.where(swing_right, self._frozen_targets_w[:, 0, 2], right_yaw)
-            left_target[:, 2] = torch.where(swing_left, self._frozen_targets_w[:, 1, 2], left_yaw)
-        else:
-            right_target[:, :2] = torch.where(swing_right.unsqueeze(1), target[:, :2], foot_pos[:, 0, :2])
-            left_target[:, :2] = torch.where(swing_left.unsqueeze(1), target[:, :2], foot_pos[:, 1, :2])
+        swing_start_any = swing_start.any(dim=1)
+        if swing_start_any.any():
+            self._stride_phase[swing_start_any] = ~self._stride_phase[swing_start_any]
 
-            right_target[:, 2] = torch.where(swing_right, target[:, 2], right_yaw)
-            left_target[:, 2] = torch.where(swing_left, target[:, 2], left_yaw)
+        right_target[:, :2] = torch.where(
+            swing_right.unsqueeze(1), self._frozen_targets_w[:, 0, :2], foot_pos[:, 0, :2]
+        )
+        left_target[:, :2] = torch.where(
+            swing_left.unsqueeze(1), self._frozen_targets_w[:, 1, :2], foot_pos[:, 1, :2]
+        )
+
+        right_target[:, 2] = torch.where(swing_right, self._frozen_targets_w[:, 0, 2], right_yaw)
+        left_target[:, 2] = torch.where(swing_left, self._frozen_targets_w[:, 1, 2], left_yaw)
 
         self.step_target_command[:, 0:3] = right_target
         self.step_target_command[:, 3:6] = left_target

@@ -107,7 +107,7 @@ class CommandsLipCfg(CommandsCfg):
 
     base_height_command = mdp.BaseHeightCommandCfg(
         resampling_time_range=(1e6, 1e6),
-        ranges=mdp.BaseHeightCommandCfg.Ranges(height=(0.30, 0.30)),
+        ranges=mdp.BaseHeightCommandCfg.Ranges(height=(0.26, 0.26)),
     )
 
     def __post_init__(self):
@@ -115,7 +115,7 @@ class CommandsLipCfg(CommandsCfg):
         self.base_velocity.heading_command = True
         self.base_velocity.debug_vis = True
         self.base_velocity.heading_control_stiffness = 1.0
-        self.base_velocity.resampling_time_range = (10.0, 15.0)
+        self.base_velocity.resampling_time_range = (0.0, 5.0)
         self.base_velocity.rel_standing_envs = 0.2
         self.base_velocity.rel_heading_envs = 1.0
         self.base_velocity.ranges = mdp.UniformVelocityCommandCfg.Ranges(
@@ -382,7 +382,7 @@ class RewardsLipCfg:
     # Regularization
     pen_base_height = RewTerm(
         func=mdp.base_height_tracking_l2,
-        weight=1.0,
+        weight=-1.0,
         params={"command_name": "base_height_command"}
     )
     pen_joint_torq = RewTerm(func=mdp.joint_torques_l2, weight=-1e-4)
@@ -510,8 +510,8 @@ class BipedLipEnvCfg(ManagerBasedRLEnvCfg):
         self.decimation = 4
         self.episode_length_s = 25.0
         # viewer settings
-        self.viewer.eye = (10.0, 10.0, 5.0)
-        self.viewer.lookat = (-5.0, 0.0, 0.0)
+        self.viewer.eye = (-6.0, 12.0, 5.0)
+        self.viewer.lookat = (0.0, 0.0, 0.0)
         # simulation settings
         self.sim.dt = 0.005
         self.sim.render_interval = 2 * self.decimation

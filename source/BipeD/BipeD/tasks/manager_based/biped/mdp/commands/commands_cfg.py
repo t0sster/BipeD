@@ -65,10 +65,6 @@ class LipStepCommandCfg(CommandTermCfg):
     use_cmd_heading: bool = True
     heading_speed_eps: float = 1e-3
 
-    # Frame handling.
-    use_base_frame: bool = True
-    lock_target_on_swing: bool = True
-    use_mid_stance: bool = False
 
     ranges: Ranges | None = None
     """Optional ranges for step parameters."""

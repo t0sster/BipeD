@@ -140,14 +140,14 @@ class BDLipEnvCfg(BipedLipEnvCfg):
 
         self.reward_params.weights = {
             # rewards
-            "rew_lin_vel_xy": 4.0,
+            "rew_lin_vel_xy": 3.0,
             "rew_ang_vel_z": 2.0,
             "rew_step_tracking": 3.0,
             "rew_heading": 0.5,
             "rew_feet_air_time": 0.0,
             "contact_schedule": 2.0,
             # penalities
-            "base_height": -0.5,
+            "base_height": -1.0,
             "joint_torques": -1e-4,
             "joint_vel": -1e-3,
             "joint_pos_limits": -0.5,
@@ -174,15 +174,15 @@ class BDLipEnvCfg(BipedLipEnvCfg):
 
         # Step command settings (match reference-style explicit step geometry).
         self.commands.lip_step_command.nominal_step_length = None
-        self.commands.lip_step_command.nominal_step_width = 0.22
+        self.commands.lip_step_command.nominal_step_width = 0.24
         self.commands.lip_step_command.step_period_s = None
         self.commands.lip_step_command.use_cmd_heading = True
         self.commands.lip_step_command.ranges = mdp.LipStepCommandCfg.Ranges(
-            step_length=(0.02, 0.10),
+            step_length=None,
             step_width=(0.24, 0.24),
+            step_period_s=None,
         )
 
-        self.commands.lip_step_command.use_mid_stance = True
 
         # Drive step period through gait command (T = 0.5 / f).
         self.commands.gait_command.ranges = mdp.UniformGaitCommandCfg.Ranges(
@@ -230,20 +230,25 @@ class BDLipEnvCfg_Play(BDLipEnvCfg):
         # remove random base mass addition event
         self.events.add_base_mass = None # type: ignore
         self.commands.base_velocity.ranges = mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-0.1, 0.3), 
-            lin_vel_y=(-0.1, 0.1), 
-            ang_vel_z=(-0.75, 0.75),
-            heading=(-math.pi, math.pi)
+            lin_vel_x=(0.0, 0.3), 
+            lin_vel_y=(0.0, 0.0), 
+            ang_vel_z=(0.0, 0.0),
+            heading=(0.0, 0.0)
         )
 
         self.commands.lip_step_command.ranges = mdp.LipStepCommandCfg.Ranges(
-            step_length=(0.05, 0.10),
-            step_width=(0.22, 0.22),
+            step_length=None,
+            step_width=(0.24, 0.24),
+        )
+
+        self.commands.base_height_command.ranges = mdp.BaseHeightCommandCfg.Ranges(
+            # height=(self.reward_params.base_height_target, self.reward_params.base_height_target)
+            height=(0.24, 0.26)
         )
 
         # Drive step period through gait command (T = 0.5 / f).
         self.commands.gait_command.ranges = mdp.UniformGaitCommandCfg.Ranges(
-            frequencies=(1.0, 2.0),
+            frequencies=(2.0, 2.0),
             offsets=(0.5, 0.5),
             durations=(0.5, 0.5),
         )
