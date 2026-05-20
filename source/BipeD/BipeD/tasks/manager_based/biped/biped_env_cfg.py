@@ -248,7 +248,7 @@ class BDLipEnvCfg_Play(BDLipEnvCfg):
 
         # Drive step period through gait command (T = 0.5 / f).
         self.commands.gait_command.ranges = mdp.UniformGaitCommandCfg.Ranges(
-            frequencies=(2.0, 2.0),
+            frequencies=(1.0, 2.0),
             offsets=(0.5, 0.5),
             durations=(0.5, 0.5),
         )

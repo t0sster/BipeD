@@ -60,12 +60,15 @@ def step_command_tracking(
 ) -> torch.Tensor:
     """Reward tracking the LIPM step target for both feet.
 
-    Uses world-frame foot pose against the command target.
+    Uses base-frame foot pose against the command target.
     """
     asset: Articulation = env.scene[asset_cfg.name]
     foot_ids = asset_cfg.body_ids
 
-    foot_pos = asset.data.body_pos_w[:, foot_ids, :2]
+    base_pos = asset.data.root_pos_w
+    base_quat = asset.data.root_quat_w
+
+    foot_pos_w = asset.data.body_pos_w[:, foot_ids, :]
     foot_quat = asset.data.body_quat_w[:, foot_ids, :]
 
     forward = torch.tensor([1.0, 0.0, 0.0], device=asset.device).repeat(env.num_envs, 1)
@@ -80,10 +83,24 @@ def step_command_tracking(
     )
 
     cmd = env.command_manager.get_command(command_name)
-    target_xy = torch.stack((cmd[:, 0:2], cmd[:, 3:5]), dim=1)
+    target_xy_w = torch.stack((cmd[:, 0:2], cmd[:, 3:5]), dim=1)
     target_yaw = torch.stack((cmd[:, 2], cmd[:, 5]), dim=1)
 
-    pos_err = torch.norm(foot_pos - target_xy, dim=2)
+    foot_pos_b = math_utils.quat_apply_inverse(
+        base_quat.unsqueeze(1).repeat(1, foot_pos_w.shape[1], 1),
+        foot_pos_w - base_pos.unsqueeze(1),
+    )
+
+    target_pos_w = torch.zeros(target_xy_w.shape[0], target_xy_w.shape[1], 3, device=target_xy_w.device)
+    target_pos_w[:, :, :2] = target_xy_w
+    target_pos_w[:, :, 2] = base_pos[:, 2:3]
+
+    target_xy_b = math_utils.quat_apply_inverse(
+        base_quat.unsqueeze(1).repeat(1, target_pos_w.shape[1], 1),
+        target_pos_w - base_pos.unsqueeze(1),
+    )
+
+    pos_err = torch.norm(foot_pos_b[:, :, :2] - target_xy_b[:, :, :2], dim=2)
     yaw_err = math_utils.wrap_to_pi(foot_yaw - target_yaw)
 
     reward_pos = torch.exp(-torch.square(pos_err) / position_sigma)
