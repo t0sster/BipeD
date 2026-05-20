@@ -65,6 +65,10 @@ class LipStepCommandCfg(CommandTermCfg):
     use_cmd_heading: bool = True
     heading_speed_eps: float = 1e-3
 
+    # Stride compensation along heading (0 disables).
+    stride_compensation_gain: float = 0.5
+    stride_compensation_max_ratio: float = 0.5
+
 
     ranges: Ranges | None = None
     """Optional ranges for step parameters."""

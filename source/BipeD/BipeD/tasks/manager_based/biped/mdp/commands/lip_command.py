@@ -164,6 +164,14 @@ class LipStepCommand(CommandTerm):
         ).reshape(foot_pos_w.shape)
         support_pos_plan = torch.where(swing_right.unsqueeze(1), foot_pos_b[:, 1, :], foot_pos_b[:, 0, :])
 
+        heading_dir_b = torch.stack((torch.cos(heading_b.squeeze(1)), torch.sin(heading_b.squeeze(1))), dim=1)
+        delta_along = (foot_pos_b[:, 0, :2] - foot_pos_b[:, 1, :2]).mul(heading_dir_b).sum(dim=1, keepdim=True)
+        comp = self.cfg.stride_compensation_gain * delta_along
+        comp_limit = self.cfg.stride_compensation_max_ratio * dstep_length
+        comp = torch.clamp(comp, min=-comp_limit, max=comp_limit)
+        swing_sign = (swing_left.float() - swing_right.float()).unsqueeze(1)
+        dstep_length_eff = torch.clamp(dstep_length + swing_sign * comp, min=0.0)
+
         target_b = compute_xcom_step_targets(
             root_pos_plan,
             root_vel_plan,
@@ -172,7 +180,7 @@ class LipStepCommand(CommandTerm):
             heading_b,
             T,
             dstep_width,
-            dstep_length,
+            dstep_length_eff,
             swing_left,
         )
 
