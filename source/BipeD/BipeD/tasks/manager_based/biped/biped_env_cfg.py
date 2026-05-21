@@ -151,7 +151,7 @@ class BDLipEnvCfg(BipedLipEnvCfg):
             "joint_torques": -1e-4,
             "joint_vel": -1e-3,
             "joint_pos_limits": -0.5,
-            "stand_still": -0.2,
+            "stand_still": -1.0,
             "no_contact": 0.0,
             "foot_slip": -0.2,
             "action_smoothness": -1e-3,
@@ -198,10 +198,10 @@ class BDLipEnvCfg(BipedLipEnvCfg):
         )
 
         self.commands.base_velocity.ranges = mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-0.05, 0.3), 
-            lin_vel_y=(-0.05, 0.05), 
+            lin_vel_x=(-0.2, 0.5), 
+            lin_vel_y=(-0.10, 0.10), 
             ang_vel_z=(-0.75, 0.75), 
-            heading=(0.0, 0.0)
+            heading=(-math.pi, math.pi)
         )
 
         self.reward_params.feet_air_time_scale = 0.4
@@ -230,10 +230,10 @@ class BDLipEnvCfg_Play(BDLipEnvCfg):
         # remove random base mass addition event
         self.events.add_base_mass = None # type: ignore
         self.commands.base_velocity.ranges = mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(0.0, 0.3), 
-            lin_vel_y=(0.0, 0.0), 
-            ang_vel_z=(0.0, 0.0),
-            heading=(0.0, 0.0)
+            lin_vel_x=(-0.2, 0.5), 
+            lin_vel_y=(-0.10, 0.10), 
+            ang_vel_z=(-0.75, 0.75), 
+            heading=(-math.pi, math.pi)
         )
 
         self.commands.lip_step_command.ranges = mdp.LipStepCommandCfg.Ranges(

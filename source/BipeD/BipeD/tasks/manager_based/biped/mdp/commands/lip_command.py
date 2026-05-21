@@ -131,19 +131,17 @@ class LipStepCommand(CommandTerm):
         else:
             T = torch.full((self.num_envs, 1), self.cfg.step_period_s, device=self.device)
 
+        vel_heading = torch.atan2(cmd_vel[:, 1], cmd_vel[:, 0]).unsqueeze(1)
+        step_heading_b = torch.where(
+            cmd_speed > self.cfg.heading_speed_eps,
+            vel_heading,
+            torch.zeros_like(vel_heading),
+        )
+
         if self.cfg.use_cmd_heading:
-            vel_heading = torch.atan2(cmd_vel[:, 1], cmd_vel[:, 0]).unsqueeze(1)
-            desired_heading = math_utils.wrap_to_pi(base_heading + vel_heading + cmd_wz * T)
-            heading = torch.where(
-                cmd_speed > self.cfg.heading_speed_eps,
-                desired_heading,
-                math_utils.wrap_to_pi(base_heading + cmd_wz * T),
-            )
-            heading_b = math_utils.wrap_to_pi(vel_heading + cmd_wz * T)
-            heading_b = torch.where(cmd_speed > self.cfg.heading_speed_eps, heading_b, cmd_wz * T)
+            heading = math_utils.wrap_to_pi(base_heading + cmd_wz * T)
         else:
             heading = base_heading
-            heading_b = torch.zeros_like(base_heading)
 
         dstep_width = self._step_width
         if self._use_step_length:
@@ -164,9 +162,10 @@ class LipStepCommand(CommandTerm):
         ).reshape(foot_pos_w.shape)
         support_pos_plan = torch.where(swing_right.unsqueeze(1), foot_pos_b[:, 1, :], foot_pos_b[:, 0, :])
 
-        heading_dir_b = torch.stack((torch.cos(heading_b.squeeze(1)), torch.sin(heading_b.squeeze(1))), dim=1)
+        heading_dir_b = torch.stack((torch.cos(step_heading_b.squeeze(1)), torch.sin(step_heading_b.squeeze(1))), dim=1)
+        speed_scale = cmd_vel[:, 0:1].abs() / (cmd_vel[:, 0:1].abs() + cmd_vel[:, 1:2].abs() + 1e-6)
         delta_along = (foot_pos_b[:, 0, :2] - foot_pos_b[:, 1, :2]).mul(heading_dir_b).sum(dim=1, keepdim=True)
-        comp = self.cfg.stride_compensation_gain * delta_along
+        comp = self.cfg.stride_compensation_gain * speed_scale * delta_along
         comp_limit = self.cfg.stride_compensation_max_ratio * dstep_length
         comp = torch.clamp(comp, min=-comp_limit, max=comp_limit)
         swing_sign = (swing_left.float() - swing_right.float()).unsqueeze(1)
@@ -177,7 +176,7 @@ class LipStepCommand(CommandTerm):
             root_vel_plan,
             support_pos_plan,
             cmd_vel,
-            heading_b,
+            step_heading_b,
             T,
             dstep_width,
             dstep_length_eff,

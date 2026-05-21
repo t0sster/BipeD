@@ -110,7 +110,7 @@ class CommandsCfg(BaseCommandsCfg):
         self.base_velocity.heading_command = True
         self.base_velocity.debug_vis = True
         self.base_velocity.heading_control_stiffness = 1.0
-        self.base_velocity.resampling_time_range = (0.0, 5.0)
+        self.base_velocity.resampling_time_range = (10.0, 15.0)
         self.base_velocity.rel_standing_envs = 0.2
         self.base_velocity.rel_heading_envs = 0.0
         self.base_velocity.ranges = mdp.UniformVelocityCommandCfg.Ranges(
