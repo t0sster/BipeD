@@ -5,7 +5,7 @@ from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 
 current_dir = os.path.dirname(__file__)
-usd_path = os.path.join(current_dir, "../usd/BD_prims/BD_prims.usd")
+usd_path = os.path.join(current_dir, "../usd/BD/BD.usd")
 
 BD_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(

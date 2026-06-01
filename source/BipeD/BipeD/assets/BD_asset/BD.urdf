@@ -10,6 +10,7 @@
     	balanceinertia="true"
     	discardvisual="false" />
   </mujoco>
+  
   <link
     name="base_link">
     <inertial>
@@ -19,17 +20,17 @@
       <mass
         value="3" />
       <inertia
-        ixx="0.02538"
+        ixx="0.02"
         ixy="0"
         ixz="0"
-        iyy="0.03617"
+        iyy="0.02"
         iyz="0"
-        izz="0.01306" />
+        izz="0.02" />
     </inertial>
     <visual>
       <origin
         xyz="0 0 0"
-        rpy="0 0 0" />
+        rpy="0 0 3.14" />
       <geometry>
         <mesh
           filename="./meshes/base_link.STL" />
@@ -37,24 +38,22 @@
       <material
         name="">
         <color
-          rgba="0.501960784313725 0.501960784313725 0.501960784313725 1" />
+          rgba="0.5 0.5 0.5 1" />
       </material>
     </visual>
     <collision>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
+      <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh
-          filename="./meshes/base_link.STL" />
+        <box size="0.22 0.16 0.16" />
       </geometry>
     </collision>
   </link>
+
   <link
     name="L0_Link">
     <inertial>
       <origin
-        xyz="0.0006 0 -0.0529"
+        xyz="0 0 -0.0529"
         rpy="0 0 0" />
       <mass
         value="0.587331353457417" />
@@ -62,9 +61,9 @@
         ixx="0.0007"
         ixy="0"
         ixz="0"
-        iyy="0.0004"
+        iyy="0.001"
         iyz="0"
-        izz="0.0004" />
+        izz="0.001" />
     </inertial>
     <visual>
       <origin
@@ -80,49 +79,47 @@
           rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <collision>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
+    <!-- <collision>
+      <origin xyz="0 0 -0.027" rpy="0 0 0" />
       <geometry>
-        <mesh
-          filename="./meshes/L0_Link.STL" />
+        <cylinder radius="0.025" length="0.050" />
       </geometry>
-    </collision>
+    </collision> -->
   </link>
   <joint
     name="J_L0"
     type="revolute">
     <origin
-      xyz="0.0025357 0.053301 0.056145"
-      rpy="0 0 0" />
+      xyz="0.0 0.053301 0.056145"
+      rpy="0 0 3.14" />
     <parent
       link="base_link" />
     <child
       link="L0_Link" />
     <axis
-      xyz="0 0 1" />
+      xyz="0 0 -1" />
     <limit
       lower="-0.3"
       upper="0.3"
       effort="12"
       velocity="20" />
   </joint>
+  
   <link
     name="L1_Link">
     <inertial>
       <origin
-        xyz="-0.0035 0.0342 -0.0092"
+        xyz="0.01 -0.075 -0.0092"
         rpy="0 0 0" />
       <mass
-        value="0.0295521887544817" />
+        value="0.5" />
       <inertia
-        ixx="0.0001"
+        ixx="0.001"
         ixy="0"
         ixz="0"
-        iyy="0.0001"
+        iyy="0.0006"
         iyz="0"
-        izz="0.00005" />
+        izz="0.001" />
     </inertial>
     <visual>
       <origin
@@ -138,15 +135,13 @@
           rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <collision>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
+    <!-- L1 is a very light (30g) structural hip-roll connector; use a small sphere -->
+    <!-- <collision>
+      <origin xyz="0 0.037 -0.007" rpy="0 0 0" />
       <geometry>
-        <mesh
-          filename="./meshes/L1_Link.STL" />
+        <sphere radius="0.015" />
       </geometry>
-    </collision>
+    </collision> -->
   </link>
   <joint
     name="J_L1"
@@ -166,21 +161,22 @@
       effort="20"
       velocity="20" />
   </joint>
+
   <link
     name="L2_Link">
     <inertial>
       <origin
-        xyz="-0.0008 0.0178 -0.0738"
+        xyz="0.0 0.01 -0.15"
         rpy="0 0 0" />
       <mass
-        value="1.34863094594399" />
+        value="0.5" />
       <inertia
-        ixx="0.0075"
+        ixx="0.001"
         ixy="0"
         ixz="0"
-        iyy="0.0082"
+        iyy="0.0006"
         iyz="0"
-        izz="0.0009" />
+        izz="0.001" />
     </inertial>
     <visual>
       <origin
@@ -196,13 +192,11 @@
           rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
       </material>
     </visual>
+    <!-- Thigh: J_L3 is 0.14738 m below J_L2; cylinder along Z -->
     <collision>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
+      <origin xyz="0 0.005 -0.06" rpy="0 0 0" />
       <geometry>
-        <mesh
-          filename="./meshes/L2_Link.STL" />
+        <cylinder radius="0.02" length="0.120" />
       </geometry>
     </collision>
   </link>
@@ -210,8 +204,8 @@
     name="J_L2"
     type="revolute">
     <origin
-      xyz="0.010958 0.073699 -0.014313"
-      rpy="0 0 0" />
+      xyz="0.010958 -0.073699 -0.014313"
+      rpy="0 0 3.14" />
     <parent
       link="L1_Link" />
     <child
@@ -224,21 +218,22 @@
       effort="20"
       velocity="20" />
   </joint>
+
   <link
     name="L3_Link">
     <inertial>
       <origin
-        xyz="0 0.008 -0.122"
+        xyz="0 -0.005 -0.135"
         rpy="0 0 0" />
       <mass
-        value="0.629727076499127" />
+        value="0.5" />
       <inertia
-        ixx="0.0012"
+        ixx="0.001"
         ixy="0"
         ixz="0"
-        iyy="0.0013"
+        iyy="0.0006"
         iyz="0"
-        izz="0.0002" />
+        izz="0.001" />
     </inertial>
     <visual>
       <origin
@@ -254,13 +249,11 @@
           rgba="1 1 1 1" />
       </material>
     </visual>
+    <!-- Shin: J_L4_ankle is 0.14149 m below J_L3; cylinder along Z -->
     <collision>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
+      <origin xyz="0 0 -0.071" rpy="0 0 0" />
       <geometry>
-        <mesh
-          filename="./meshes/L3_Link.STL" />
+        <cylinder radius="0.022" length="0.120" />
       </geometry>
     </collision>
   </link>
@@ -275,13 +268,14 @@
     <child
       link="L3_Link" />
     <axis
-      xyz="0 1 0" />
+      xyz="0 -1 0" />
     <limit
-      lower="-2.35"
-      upper="0.05"
+      lower="-0.1"
+      upper="1.57"
       effort="20"
       velocity="20" />
   </joint>
+
   <link
     name="L4_Link_ankle">
     <inertial>
@@ -289,7 +283,7 @@
         xyz="0.0118 -0.0068 -0.0296"
         rpy="0 0 0" />
       <mass
-        value="0.171742682777178" />
+        value="0.15" />
       <inertia
         ixx="0.0001"
         ixy="0"
@@ -312,13 +306,11 @@
           rgba="1 1 1 1" />
       </material>
     </visual>
+    <!-- Foot pad: CoM at z=-0.030; flat box for ground contact -->
     <collision>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
+      <origin xyz="0.015 0 -0.040" rpy="0 0 0" />
       <geometry>
-        <mesh
-          filename="./meshes/L4_Link_ankle.STL" />
+        <box size="0.14 0.050 0.018" />
       </geometry>
     </collision>
   </link>
@@ -333,13 +325,14 @@
     <child
       link="L4_Link_ankle" />
     <axis
-      xyz="0 -1 0" />
+      xyz="0 1 0" />
     <limit
-      lower="-0.6"
-      upper="0.7"
+      lower="-0.3"
+      upper="0.8"
       effort="12"
       velocity="20" />
   </joint>
+
   <link
     name="R0_Link">
     <inertial>
@@ -349,12 +342,12 @@
       <mass
         value="0.587331353381893" />
       <inertia
-        ixx="0.0008"
+        ixx="0.0007"
         ixy="0"
         ixz="0"
-        iyy="0.0005"
+        iyy="0.001"
         iyz="0"
-        izz="0.0004" />
+        izz="0.001" />
     </inertial>
     <visual>
       <origin
@@ -370,49 +363,47 @@
           rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <collision>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
+    <!-- <collision>
+      <origin xyz="0 0 -0.027" rpy="0 0 0" />
       <geometry>
-        <mesh
-          filename="./meshes/R0_Link.STL" />
+        <cylinder radius="0.025" length="0.050" />
       </geometry>
-    </collision>
+    </collision> -->
   </link>
   <joint
     name="J_R0"
     type="revolute">
     <origin
-      xyz="0.0025357 -0.053425 0.056145"
-      rpy="0 0 0" />
+      xyz="0.0 -0.053425 0.056145"
+      rpy="0 0 3.14" />
     <parent
       link="base_link" />
     <child
       link="R0_Link" />
     <axis
-      xyz="0 0 1" />
+      xyz="0 0 -1" />
     <limit
       lower="-0.3"
       upper="0.3"
       effort="12"
       velocity="20" />
   </joint>
+  
   <link
     name="R1_Link">
     <inertial>
       <origin
-        xyz="-0.0035 -0.0342 -0.0092"
+        xyz="0.01 0.075 -0.0092"
         rpy="0 0 0" />
       <mass
-        value="0.029551251476222" />
+        value="0.5" />
       <inertia
-        ixx="0.0001"
+        ixx="0.001"
         ixy="0"
         ixz="0"
-        iyy="0.0001"
+        iyy="0.0006"
         iyz="0"
-        izz="0.00005" />
+        izz="0.001" />
     </inertial>
     <visual>
       <origin
@@ -428,15 +419,13 @@
           rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <collision>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
+    <!-- R1 is a very light (30g) structural hip-roll connector; use a small sphere -->
+    <!-- <collision>
+      <origin xyz="0 -0.037 -0.007" rpy="0 0 0" />
       <geometry>
-        <mesh
-          filename="./meshes/R1_Link.STL" />
+        <sphere radius="0.015" />
       </geometry>
-    </collision>
+    </collision> -->
   </link>
   <joint
     name="J_R1"
@@ -456,19 +445,20 @@
       effort="20"
       velocity="20" />
   </joint>
+
   <link
     name="R2_Link">
     <inertial>
       <origin
-        xyz="-0.0008 -0.0178 -0.0737"
+        xyz="0.0 -0.01 -0.15"
         rpy="0 0 0" />
       <mass
-        value="1.35023891621348" />
+        value="0.5" />
       <inertia
-        ixx="0.0075"
+        ixx="0.001"
         ixy="0"
         ixz="0"
-        iyy="0.0082"
+        iyy="0.0006"
         iyz="0"
         izz="0.001" />
     </inertial>
@@ -486,13 +476,11 @@
           rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
       </material>
     </visual>
+    <!-- Thigh: J_R3 is 0.14738 m below J_R2; cylinder along Z -->
     <collision>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
+      <origin xyz="0 -0.005 -0.06" rpy="0 0 0" />
       <geometry>
-        <mesh
-          filename="./meshes/R2_Link.STL" />
+        <cylinder radius="0.02" length="0.120" />
       </geometry>
     </collision>
   </link>
@@ -500,8 +488,8 @@
     name="J_R2"
     type="revolute">
     <origin
-      xyz="0.010958 -0.073575 -0.014313"
-      rpy="0 0 0" />
+      xyz="0.010958 0.073575 -0.014313"
+      rpy="0 0 3.14" />
     <parent
       link="R1_Link" />
     <child
@@ -509,26 +497,27 @@
     <axis
       xyz="0 -1 0" />
     <limit
-      lower="-0.57"
-      upper="1.57"
+      lower="-1.57"
+      upper="0.57"
       effort="20"
       velocity="20" />
   </joint>
+
   <link
     name="R3_Link">
     <inertial>
       <origin
-        xyz="0 -0.0073 -0.1176"
+        xyz="0 0.005 -0.135"
         rpy="0 0 0" />
       <mass
-        value="0.511661896307101" />
+        value="0.5" />
       <inertia
-        ixx="0.0011"
+        ixx="0.001"
         ixy="0"
         ixz="0"
-        iyy="0.0012"
+        iyy="0.0006"
         iyz="0"
-        izz="0.0002" />
+        izz="0.001" />
     </inertial>
     <visual>
       <origin
@@ -544,13 +533,11 @@
           rgba="1 1 1 1" />
       </material>
     </visual>
+    <!-- Shin: J_R4_ankle is 0.14149 m below J_R3; cylinder along Z -->
     <collision>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
+      <origin xyz="0 0 -0.071" rpy="0 0 0" />
       <geometry>
-        <mesh
-          filename="./meshes/R3_Link.STL" />
+        <cylinder radius="0.022" length="0.120" />
       </geometry>
     </collision>
   </link>
@@ -565,13 +552,14 @@
     <child
       link="R3_Link" />
     <axis
-      xyz="0 -1 0" />
+      xyz="0 1 0" />
     <limit
-      lower="-0.05"
-      upper="2.35"
+      lower="-1.57"
+      upper="0.10"
       effort="20"
       velocity="20" />
   </joint>
+
   <link
     name="R4_Link_ankle">
     <inertial>
@@ -579,7 +567,7 @@
         xyz="0.0118 0.0067 -0.0296"
         rpy="0 0 0" />
       <mass
-        value="0.17174" />
+        value="0.15" />
       <inertia
         ixx="0.0001"
         ixy="0"
@@ -602,13 +590,11 @@
           rgba="1 0.90588 0.91765 1" />
       </material>
     </visual>
+    <!-- Foot pad: CoM at z=-0.030; flat box for ground contact -->
     <collision>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
+      <origin xyz="0.015 0 -0.040" rpy="0 0 0" />
       <geometry>
-        <mesh
-          filename="./meshes/R4_Link_ankle.STL" />
+        <box size="0.14 0.050 0.018" />
       </geometry>
     </collision>
   </link>
@@ -623,10 +609,10 @@
     <child
       link="R4_Link_ankle" />
     <axis
-      xyz="0 1 0" />
+      xyz="0 -1 0" />
     <limit
-      lower="-0.7"
-      upper="0.6"
+      lower="-0.8"
+      upper="0.3"
       effort="12"
       velocity="20" />
   </joint>
