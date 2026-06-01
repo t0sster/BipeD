@@ -147,30 +147,41 @@ class ObservationsLipCfg:
         # base_height = ObsTerm(func=mdp.base_pos_z, noise=UniformNoise(operation="add", n_min=-0.05, n_max=0.05))
         # base_lin_vel_world = ObsTerm(func=mdp.base_lin_vel, noise=UniformNoise(operation="add", n_min=-0.2, n_max=0.2))
 
-        base_heading = ObsTerm(func=mdp.base_heading, noise=UniformNoise(operation="add", n_min=-0.05, n_max=0.05))
-        base_ang_vel = ObsTerm(func=mdp.base_ang_vel, noise=UniformNoise(operation="add", n_min=-0.1, n_max=0.1))
-        proj_gravity = ObsTerm(func=mdp.projected_gravity, noise=UniformNoise(operation="add", n_min=-0.05, n_max=0.05))
+        base_heading = ObsTerm(
+            func=mdp.base_heading, 
+            noise=UniformNoise(operation="add", n_min=-0.05, n_max=0.05)) # 1
         
-        foot_states_right = ObsTerm(func=mdp.foot_states_right)
-        foot_states_left = ObsTerm(func=mdp.foot_states_left)
+        base_ang_vel = ObsTerm(
+            func=mdp.base_ang_vel, 
+            noise=UniformNoise(operation="add", n_min=-0.1, n_max=0.1)) # 3
+        
+        proj_gravity = ObsTerm(
+            func=mdp.projected_gravity, 
+            noise=UniformNoise(operation="add", n_min=-0.05, n_max=0.05)) # 3
+        
+        foot_states_right = ObsTerm(func=mdp.foot_states_right) # 4
+        foot_states_left = ObsTerm(func=mdp.foot_states_left) # 4
 
-        foot_target_right = ObsTerm(func=mdp.step_command_right)
-        foot_target_left = ObsTerm(func=mdp.step_command_left)
+        foot_target_right = ObsTerm(func=mdp.step_command_right) # 4
+        foot_target_left = ObsTerm(func=mdp.step_command_left) # 4
 
         commands = ObsTerm(
             func=mdp.generated_commands, 
-            params={"command_name": "base_velocity"}
-        )
+            params={"command_name": "base_velocity"}) # 3
 
         base_height_command = ObsTerm(
             func=mdp.generated_commands,
-            params={"command_name": "base_height_command"}
-        )
+            params={"command_name": "base_height_command"}) # 1
         
-        gait_phase = ObsTerm(func=mdp.get_gait_phase)
+        gait_phase = ObsTerm(func=mdp.get_gait_phase) # 2
 
-        joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=UniformNoise(operation="add", n_min=-0.01, n_max=0.01))
-        joint_vel = ObsTerm(func=mdp.joint_vel, noise=UniformNoise(operation="add", n_min=-0.5, n_max=0.5))
+        joint_pos = ObsTerm(
+            func=mdp.joint_pos_rel, 
+            noise=UniformNoise(operation="add", n_min=-0.01, n_max=0.01)) # 10
+        
+        joint_vel = ObsTerm(
+            func=mdp.joint_vel, 
+            noise=UniformNoise(operation="add", n_min=-0.5, n_max=0.5)) # 10
 
     @configclass
     class CriticCfg(ObsGroup):

@@ -10,6 +10,7 @@
     	balanceinertia="true"
     	discardvisual="false" />
   </mujoco>
+  
   <link
     name="base_link">
     <inertial>
@@ -29,7 +30,7 @@
     <visual>
       <origin
         xyz="0 0 0"
-        rpy="0 0 0" />
+        rpy="0 0 3.14" />
       <geometry>
         <mesh
           filename="./meshes/base_link.STL" />
@@ -47,11 +48,12 @@
       </geometry>
     </collision>
   </link>
+
   <link
     name="L0_Link">
     <inertial>
       <origin
-        xyz="0.0006 0 -0.0529"
+        xyz="0 0 -0.0529"
         rpy="0 0 0" />
       <mass
         value="0.587331353457417" />
@@ -88,20 +90,21 @@
     name="J_L0"
     type="revolute">
     <origin
-      xyz="0.0025357 0.053301 0.056145"
-      rpy="0 0 0" />
+      xyz="0.0 0.053301 0.056145"
+      rpy="0 0 3.14" />
     <parent
       link="base_link" />
     <child
       link="L0_Link" />
     <axis
-      xyz="0 0 1" />
+      xyz="0 0 -1" />
     <limit
       lower="-0.3"
       upper="0.3"
       effort="12"
       velocity="20" />
   </joint>
+  
   <link
     name="L1_Link">
     <inertial>
@@ -158,6 +161,7 @@
       effort="20"
       velocity="20" />
   </joint>
+
   <link
     name="L2_Link">
     <inertial>
@@ -200,8 +204,8 @@
     name="J_L2"
     type="revolute">
     <origin
-      xyz="0.010958 0.073699 -0.014313"
-      rpy="0 0 0" />
+      xyz="0.010958 -0.073699 -0.014313"
+      rpy="0 0 3.14" />
     <parent
       link="L1_Link" />
     <child
@@ -214,6 +218,7 @@
       effort="20"
       velocity="20" />
   </joint>
+
   <link
     name="L3_Link">
     <inertial>
@@ -263,13 +268,14 @@
     <child
       link="L3_Link" />
     <axis
-      xyz="0 1 0" />
+      xyz="0 -1 0" />
     <limit
-      lower="-1.57"
-      upper="0.05"
+      lower="-0.1"
+      upper="1.57"
       effort="20"
       velocity="20" />
   </joint>
+
   <link
     name="L4_Link_ankle">
     <inertial>
@@ -319,13 +325,14 @@
     <child
       link="L4_Link_ankle" />
     <axis
-      xyz="0 -1 0" />
+      xyz="0 1 0" />
     <limit
-      lower="-0.78"
-      upper="0.7"
+      lower="-0.3"
+      upper="0.8"
       effort="12"
       velocity="20" />
   </joint>
+
   <link
     name="R0_Link">
     <inertial>
@@ -367,20 +374,21 @@
     name="J_R0"
     type="revolute">
     <origin
-      xyz="0.0025357 -0.053425 0.056145"
-      rpy="0 0 0" />
+      xyz="0.0 -0.053425 0.056145"
+      rpy="0 0 3.14" />
     <parent
       link="base_link" />
     <child
       link="R0_Link" />
     <axis
-      xyz="0 0 1" />
+      xyz="0 0 -1" />
     <limit
       lower="-0.3"
       upper="0.3"
       effort="12"
       velocity="20" />
   </joint>
+  
   <link
     name="R1_Link">
     <inertial>
@@ -437,6 +445,7 @@
       effort="20"
       velocity="20" />
   </joint>
+
   <link
     name="R2_Link">
     <inertial>
@@ -479,8 +488,8 @@
     name="J_R2"
     type="revolute">
     <origin
-      xyz="0.010958 -0.073575 -0.014313"
-      rpy="0 0 0" />
+      xyz="0.010958 0.073575 -0.014313"
+      rpy="0 0 3.14" />
     <parent
       link="R1_Link" />
     <child
@@ -493,6 +502,7 @@
       effort="20"
       velocity="20" />
   </joint>
+
   <link
     name="R3_Link">
     <inertial>
@@ -542,13 +552,14 @@
     <child
       link="R3_Link" />
     <axis
-      xyz="0 -1 0" />
+      xyz="0 1 0" />
     <limit
-      lower="-0.05"
-      upper="1.57"
+      lower="-1.57"
+      upper="0.10"
       effort="20"
       velocity="20" />
   </joint>
+
   <link
     name="R4_Link_ankle">
     <inertial>
@@ -598,10 +609,10 @@
     <child
       link="R4_Link_ankle" />
     <axis
-      xyz="0 1 0" />
+      xyz="0 -1 0" />
     <limit
-      lower="-0.7"
-      upper="0.78"
+      lower="-0.8"
+      upper="0.3"
       effort="12"
       velocity="20" />
   </joint>
