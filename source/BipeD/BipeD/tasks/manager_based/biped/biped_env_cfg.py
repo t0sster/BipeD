@@ -128,14 +128,14 @@ class BDLipEnvCfg(BipedLipEnvCfg):
             "J_L0":   0.0,
             "J_L1":  0.08,
             "J_L2":  0.56,
-            "J_L3":  -1.12,
-            "J_L4_ankle": -0.57,
+            "J_L3":  1.12,
+            "J_L4_ankle": 0.57,
             # Right
             "J_R0":   0.0,
             "J_R1":  -0.08,
             "J_R2":  -0.56,
-            "J_R3":  1.12,
-            "J_R4_ankle": 0.57
+            "J_R3":  -1.12,
+            "J_R4_ankle": -0.57
         }
 
         self.reward_params.weights = {
@@ -161,7 +161,7 @@ class BDLipEnvCfg(BipedLipEnvCfg):
         }
 
         self.events.add_base_mass.params["asset_cfg"].body_names = "base_link"
-        self.events.add_base_mass.params["mass_distribution_params"] = (-0.25, 0.25)
+        self.events.add_base_mass.params["mass_distribution_params"] = (-0.5, 0.5)
 
         self.terminations.base_contact.params["sensor_cfg"].body_names = "base_link"
 
@@ -174,12 +174,12 @@ class BDLipEnvCfg(BipedLipEnvCfg):
 
         # Step command settings (match reference-style explicit step geometry).
         self.commands.lip_step_command.nominal_step_length = None
-        self.commands.lip_step_command.nominal_step_width = 0.24
+        self.commands.lip_step_command.nominal_step_width = 0.10
         self.commands.lip_step_command.step_period_s = None
         self.commands.lip_step_command.use_cmd_heading = True
         self.commands.lip_step_command.ranges = mdp.LipStepCommandCfg.Ranges(
             step_length=None,
-            step_width=(0.24, 0.24),
+            step_width=(0.07, 0.12),
             step_period_s=None,
         )
 
@@ -236,9 +236,11 @@ class BDLipEnvCfg_Play(BDLipEnvCfg):
             heading=(-math.pi, math.pi)
         )
 
+        self.commands.lip_step_command.nominal_step_width = 0.10
         self.commands.lip_step_command.ranges = mdp.LipStepCommandCfg.Ranges(
             step_length=None,
-            step_width=(0.24, 0.24),
+            step_width=(0.07, 0.12),
+            step_period_s=None,
         )
 
         self.commands.base_height_command.ranges = mdp.BaseHeightCommandCfg.Ranges(

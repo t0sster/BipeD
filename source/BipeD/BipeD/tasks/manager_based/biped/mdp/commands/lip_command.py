@@ -244,4 +244,46 @@ class LipStepCommand(CommandTerm):
             self._step_period[env_ids, 0] = r.uniform_(*self.cfg.ranges.step_period_s)
 
     def _update_metrics(self):
-        pass
+        asset = self._env.scene[self.cfg.asset_name]  # type: ignore
+
+        base_pos = asset.data.root_pos_w
+        base_quat = asset.data.root_quat_w
+        foot_pos_w = asset.data.body_pos_w[:, self._foot_body_ids, :]
+        foot_quat = asset.data.body_quat_w[:, self._foot_body_ids, :]
+
+        target = self.step_target_command
+        target_xy_w = torch.stack((target[:, 0:2], target[:, 3:5]), dim=1)
+        target_yaw = torch.stack((target[:, 2], target[:, 5]), dim=1)
+
+        foot_pos_b = math_utils.quat_apply_inverse(
+            base_quat.unsqueeze(1).repeat(1, foot_pos_w.shape[1], 1),
+            foot_pos_w - base_pos.unsqueeze(1),
+        )
+
+        target_pos_w = torch.zeros(target_xy_w.shape[0], target_xy_w.shape[1], 3, device=target_xy_w.device)
+        target_pos_w[:, :, :2] = target_xy_w
+        target_pos_w[:, :, 2] = base_pos[:, 2:3]
+        target_pos_b = math_utils.quat_apply_inverse(
+            base_quat.unsqueeze(1).repeat(1, target_pos_w.shape[1], 1),
+            target_pos_w - base_pos.unsqueeze(1),
+        )
+
+        pos_err = torch.norm(foot_pos_b[:, :, :2] - target_pos_b[:, :, :2], dim=2).mean(dim=1)
+
+        forward = self._forward.repeat(foot_quat.shape[0], 1)
+        right_forward = math_utils.quat_apply(foot_quat[:, 0, :], forward)
+        left_forward = math_utils.quat_apply(foot_quat[:, 1, :], forward)
+        foot_yaw = torch.stack(
+            (
+                torch.atan2(right_forward[:, 1], right_forward[:, 0]),
+                torch.atan2(left_forward[:, 1], left_forward[:, 0]),
+            ),
+            dim=1,
+        )
+        yaw_err = torch.abs(math_utils.wrap_to_pi(foot_yaw - target_yaw)).mean(dim=1)
+
+        self.metrics["error_step_pos"] = pos_err
+        self.metrics["error_step_yaw"] = yaw_err
+
+    # def _update_metrics(self):
+    #     pass
