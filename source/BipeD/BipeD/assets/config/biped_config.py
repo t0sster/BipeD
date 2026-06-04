@@ -13,8 +13,8 @@ BD_CFG = ArticulationCfg(
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             rigid_body_enabled=True,
             disable_gravity=False,
-            linear_damping=0.0,
-            angular_damping=0.0,
+            linear_damping=0.05,
+            angular_damping=0.05,
             max_linear_velocity=10.0,
             max_angular_velocity=10.0,
             max_depenetration_velocity=1.0,
@@ -22,8 +22,8 @@ BD_CFG = ArticulationCfg(
 
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
             enabled_self_collisions=True,       # works only with primitives
-            solver_position_iteration_count=6,
-            solver_velocity_iteration_count=4,
+            solver_position_iteration_count=8,
+            solver_velocity_iteration_count=6,
         ),
 
         activate_contact_sensors=True,

@@ -12,12 +12,11 @@ from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, R
 class PPORunnerCfg(RslRlOnPolicyRunnerCfg):
     runner_type = "OnPolicyRunner"
     num_steps_per_env = 24
-    max_iterations = 25001
-    save_interval = 200
+    max_iterations = 5001
+    save_interval = 500
     experiment_name = "biped_naive_rl"
     policy = RslRlPpoActorCriticCfg(
-        # class_name="ActorCritic",
-        init_noise_std=1.0,
+        init_noise_std=0.5,
         actor_obs_normalization=True,
         critic_obs_normalization=True,
         actor_hidden_dims=[512, 256, 128],
@@ -25,11 +24,10 @@ class PPORunnerCfg(RslRlOnPolicyRunnerCfg):
         activation="elu",
     )
     algorithm = RslRlPpoAlgorithmCfg(
-        # class_name="PPO",
         value_loss_coef=1.0,
         use_clipped_value_loss=True,
         clip_param=0.2,
-        entropy_coef=0.001,
+        entropy_coef=0.005,
         num_learning_epochs=5,
         num_mini_batches=4,
         learning_rate=5.0e-4,

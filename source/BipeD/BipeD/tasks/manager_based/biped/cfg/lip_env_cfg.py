@@ -70,7 +70,7 @@ class BDLipSceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.DomeLightCfg(
             color=(0.9, 0.9, 0.9),
             intensity=750.0,
-            texture_file=f"{ISAAC_NUCLEUS_DIR}/Materials/Textures/Skies/PolyHaven/kloofendal_43d_clear_puresky_4k.hdr"),
+        ),
     )
 
     robot: ArticulationCfg = MISSING # type: ignore
@@ -107,7 +107,7 @@ class CommandsLipCfg(CommandsCfg):
 
     base_height_command = mdp.BaseHeightCommandCfg(
         resampling_time_range=(1e6, 1e6),
-        ranges=mdp.BaseHeightCommandCfg.Ranges(height=(0.26, 0.26)),
+        ranges=mdp.BaseHeightCommandCfg.Ranges(height=(0.20, 0.26)),
     )
 
     def __post_init__(self):
@@ -282,9 +282,11 @@ class LipRewardParamsCfg:
     rew_shaping: float = 0.25
     base_height_target: float = 0.25
     
-    step_position_sigma: float = 0.25
+    step_position_sigma: float = 0.05
     step_yaw_sigma: float = 0.25
-    heading_sigma: float = 0.25
+
+    heading_sigma: float = 0.15
+    
     contact_threshold: float = 1.0
     contact_sigma: float = 0.25
     feet_air_time_scale: float = 0.4
@@ -349,7 +351,7 @@ class RewardsLipCfg:
         params={
             "asset_cfg": SceneEntityCfg("robot"),
             "command_name": "base_velocity",
-            "heading_sigma": 0.05,
+            "heading_sigma": 0.25,
         },
     )
 

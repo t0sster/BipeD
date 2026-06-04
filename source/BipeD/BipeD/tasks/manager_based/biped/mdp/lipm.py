@@ -73,6 +73,8 @@ def compute_xcom_step_targets(
     b_x = step_length / (torch.exp(T * w) - 1.0)  # pyright: ignore[reportOptionalOperand]
     b_y = dstep_width / (torch.exp(T * w) + 1.0)
 
+    
+    '''#
     original_offset_x = -b_x
     original_offset_y = -b_y
     if left_swing is not None:
@@ -86,4 +88,23 @@ def compute_xcom_step_targets(
     target[:, 1] = (eicp_y + offset_y).squeeze(1)
 
     target[:, 2] = heading.squeeze(1)
+    return target'''
+
+    ###
+    if left_swing is not None:
+        offset_y = torch.where(left_swing.view(-1, 1), b_y, -b_y)
+    else:
+        offset_y = -b_y
+
+    offset_x = -b_x
+
+    target = torch.zeros(root_pos_w.shape[0], 3, device=root_pos_w.device)
+    target[:, 0] = (eicp_x + offset_x).squeeze(1)
+    target[:, 1] = (eicp_y + offset_y).squeeze(1)
+
+    if heading.dim() > 1:
+        target[:, 2] = heading.squeeze(1)
+    else:
+        target[:, 2] = heading
+
     return target

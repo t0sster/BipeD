@@ -174,12 +174,12 @@ class BDLipEnvCfg(BipedLipEnvCfg):
 
         # Step command settings (match reference-style explicit step geometry).
         self.commands.lip_step_command.nominal_step_length = None
-        self.commands.lip_step_command.nominal_step_width = 0.10
+        self.commands.lip_step_command.nominal_step_width = 0.20
         self.commands.lip_step_command.step_period_s = None
         self.commands.lip_step_command.use_cmd_heading = True
         self.commands.lip_step_command.ranges = mdp.LipStepCommandCfg.Ranges(
             step_length=None,
-            step_width=(0.07, 0.12),
+            step_width=(0.18, 0.21),
             step_period_s=None,
         )
 
@@ -198,10 +198,10 @@ class BDLipEnvCfg(BipedLipEnvCfg):
         )
 
         self.commands.base_velocity.ranges = mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-0.2, 0.5), 
-            lin_vel_y=(-0.10, 0.10), 
-            ang_vel_z=(-0.75, 0.75), 
-            heading=(-math.pi, math.pi)
+            lin_vel_x=(-0.2, 0.3), 
+            lin_vel_y=(-0.1, 0.1), 
+            ang_vel_z=(0.0, 0.0), 
+            heading=(-math.pi/8, math.pi/8)
         )
 
         self.reward_params.feet_air_time_scale = 0.4
@@ -229,17 +229,19 @@ class BDLipEnvCfg_Play(BDLipEnvCfg):
 
         # remove random base mass addition event
         self.events.add_base_mass = None # type: ignore
+
         self.commands.base_velocity.ranges = mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-0.2, 0.5), 
-            lin_vel_y=(-0.10, 0.10), 
-            ang_vel_z=(-0.75, 0.75), 
-            heading=(-math.pi, math.pi)
+            lin_vel_x=(-0.2, 0.3), 
+            lin_vel_y=(-0.1, 0.1), 
+            ang_vel_z=(0.0, 0.0), 
+            heading=(-math.pi/8, math.pi/8)
         )
 
-        self.commands.lip_step_command.nominal_step_width = 0.10
+
+        self.commands.lip_step_command.nominal_step_width = 0.18
         self.commands.lip_step_command.ranges = mdp.LipStepCommandCfg.Ranges(
             step_length=None,
-            step_width=(0.07, 0.12),
+            step_width=(0.18, 0.18),
             step_period_s=None,
         )
 
