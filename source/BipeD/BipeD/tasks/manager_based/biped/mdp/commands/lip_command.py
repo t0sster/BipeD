@@ -234,14 +234,22 @@ class LipStepCommand(CommandTerm):
         if self.cfg.ranges is None:
             return
 
-        r = torch.empty(len(env_ids), device=self.device)
+        num_resampling = len(env_ids)
 
         if self.cfg.ranges.step_length is not None:
-            self._step_length[env_ids, 0] = r.uniform_(*self.cfg.ranges.step_length)
+            self._step_length[env_ids, 0] = torch.empty(num_resampling, device=self.device).uniform_(
+                *self.cfg.ranges.step_length
+            )
+            
         if self.cfg.ranges.step_width is not None:
-            self._step_width[env_ids, 0] = r.uniform_(*self.cfg.ranges.step_width)
+            self._step_width[env_ids, 0] = torch.empty(num_resampling, device=self.device).uniform_(
+                *self.cfg.ranges.step_width
+            )
+            
         if self.cfg.ranges.step_period_s is not None:
-            self._step_period[env_ids, 0] = r.uniform_(*self.cfg.ranges.step_period_s)
+            self._step_period[env_ids, 0] = torch.empty(num_resampling, device=self.device).uniform_(
+                *self.cfg.ranges.step_period_s
+            )
 
     def _update_metrics(self):
         asset = self._env.scene[self.cfg.asset_name]  # type: ignore
